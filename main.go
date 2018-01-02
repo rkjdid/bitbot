@@ -1,0 +1,130 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"github.com/rkjdid/util"
+	"io"
+	"log"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"time"
+)
+
+const Version = "v0"
+
+var (
+	cfg *Config
+)
+
+var (
+	cfgPath  = flag.String("cfg", "", "path to config (defaults to <root>/config.toml)")
+	rootPath = flag.String("root", "", "path to goregen's main directory (defaults to executable path)")
+	logDir   = flag.String("log", "", "path to logs directory (defaults to <root>/log)")
+	version  = flag.Bool("version", false, "print version & exit")
+)
+
+func init() {
+	flag.Parse()
+
+	// print version & exit
+	if *version {
+		fmt.Printf("bitbot %s\n", Version)
+		os.Exit(0)
+	}
+
+	// root directory for goregen
+	if *rootPath == "" {
+		exe, err := os.Executable()
+		if err != nil {
+			log.Fatalf("couldn't get path to executable: %s", err)
+		}
+		*rootPath = filepath.Dir(exe)
+	}
+
+	err := os.MkdirAll(*rootPath, 0755)
+	if err != nil {
+		log.Fatalf("couldn't mkdir root directory \"%s\": %s", *rootPath, err)
+	}
+
+	// create log file
+	if *logDir == "" {
+		*logDir = filepath.Join(*rootPath, "log")
+	}
+	err = os.MkdirAll(*logDir, 0755)
+	if err != nil {
+		log.Fatalf("couldn't mkdir log directory \"%s\": %s", *logDir, err)
+	}
+
+	logPath := filepath.Join(*logDir, time.Now().Format("2006-01-02_15h04m05.log"))
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("couldn't create log file: %s", err)
+	}
+
+	// create log link
+	link := "bitbot.log"
+	logLink := filepath.Join(*rootPath, link)
+	_ = os.Remove(logLink)
+	err = os.Symlink(logPath, logLink)
+	if err != nil {
+		err = os.Link(logPath, logLink)
+		if err != nil {
+			log.Fatalf("couldn't create \"%s\" link: %s", link, err)
+		}
+	}
+
+	// log to both Stderr & logFile
+	log.SetOutput(io.MultiWriter(logFile, os.Stderr))
+
+	// load config
+	if *cfgPath == "" {
+		*cfgPath = filepath.Join(*rootPath, "config.toml")
+	}
+	err = util.ReadTomlFile(&cfg, *cfgPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Fatalf("error reading config \"%s\": %s", *cfgPath, err)
+		}
+		cfg = &Config{}
+		err = util.WriteTomlFile(cfg, *cfgPath)
+		if err != nil {
+			log.Fatalf("error creating config file \"%s\": %s", *cfgPath, err)
+		}
+		log.Printf("created new config file \"%s\"", *cfgPath)
+	}
+
+	log.Printf("using config file: %s", *cfgPath)
+}
+
+func main() {
+	log.Println("Press <Ctrl-C> to quit")
+
+	s := Scanner{
+		Pairs:          []string{"BTC-ETH", "BTC-BLOCK", "BTC-OMG", "BTC-NEO", "BTC-VTC", "BTC-BCC", "BTC-ADA", "BTC-TRUST", "BTC-GCR", "BTC-STEEM"},
+		Ticker:         util.Duration(time.Hour),
+		AssessmentsLen: 24,
+	}
+
+	go s.Scan()
+
+	trap := make(chan os.Signal)
+	signal.Notify(trap, os.Kill, os.Interrupt)
+	<-trap
+	fmt.Println()
+	log.Println("quit received...")
+
+	cleanExit := make(chan struct{})
+	go func() {
+		s.Stop()
+		s.Stop()
+		close(cleanExit)
+	}()
+
+	select {
+	case <-time.After(time.Second * 10):
+		log.Panicln("no clean exit after 10sec, please report panic log to https://github.com/solar3s/goregen/issues")
+	case <-cleanExit:
+	}
+}
