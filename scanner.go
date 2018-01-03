@@ -82,6 +82,21 @@ func (s *Scanner) fetchMarkets() error {
 			continue
 		}
 
+		if s.Pairs == nil || len(s.Pairs) == 0 {
+			m := &Market{
+				Market:      market,
+				MA_V_Long:   movingaverage.New(s.LongTerm),
+				MA_P_Long:   movingaverage.New(s.LongTerm),
+				MA_PV_Long:  movingaverage.New(s.LongTerm),
+				MA_V_Short:  movingaverage.New(s.ShortTerm),
+				MA_P_Short:  movingaverage.New(s.ShortTerm),
+				MA_PV_Short: movingaverage.New(s.ShortTerm),
+
+				BBSum: movingaverage.New(s.BBLength),
+			}
+			s.Markets[market.MarketName] = m
+		}
+
 		for _, pair := range s.Pairs {
 			if pair == market.MarketName {
 				m := &Market{
