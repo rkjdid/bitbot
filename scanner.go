@@ -173,7 +173,7 @@ func (s *Scanner) Scan() {
 				} else {
 					market.ConsecutiveHits = 0
 				}
-				log.Printf("%15s - vpc: %5.1f, vpr: %5.1f, vm: %5.1f, vpci: %5.1f, basis: %5.1f, dev: %5.1f\n\t\t" +
+				log.Printf("%15s - vpc: %5.1f, vpr: %5.1f, vm: %5.1f, vpci: %5.1f, basis: %5.1f, dev: %5.1f\n\t\t"+
 					"price: %5f, volume: %5f, MA_P: %5f / %5f, MA_V: %5f / %5f, MA_PV: %5f / %5f\n\n",
 					market.MarketName, vpc, vpc, vm, vpci, basis, dev,
 					p, v,
