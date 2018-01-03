@@ -103,7 +103,7 @@ func main() {
 
 	s := Scanner{
 		Pairs:      []string{"BTC-ETH", "BTC-BLOCK", "BTC-OMG", "BTC-NEO", "BTC-VTC", "BTC-BCC", "BTC-ADA", "BTC-TRUST", "BTC-GCR", "BTC-STEEM"},
-		Candle:     CandleHour,
+		Candle:     Candle30Minutes,
 		LongTerm:   20,
 		ShortTerm:  5,
 		BBLength:   20,
