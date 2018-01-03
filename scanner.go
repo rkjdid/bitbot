@@ -10,11 +10,21 @@ import (
 	"time"
 )
 
-var Candles = map[string]util.Duration{
-	"hour": util.Duration(time.Hour),
-}
+const (
+	CandleMinute    = "oneMin"
+	Candle5Minutes  = "fiveMin"
+	Candle30Minutes = "thirtyMin"
+	CandleHour      = "hour"
+	CandleDay       = "day"
+)
 
-const CandleHour = "hour"
+var Candles = map[string]util.Duration{
+	CandleMinute:    util.Duration(time.Minute),
+	Candle5Minutes:  util.Duration(time.Minute * 5),
+	Candle30Minutes: util.Duration(time.Minute * 30),
+	CandleHour:      util.Duration(time.Hour),
+	CandleDay:       util.Duration(time.Hour * 24),
+}
 
 type Scanner struct {
 	Pairs   []string
