@@ -1,61 +1,59 @@
 package main
 
 import (
+	"github.com/montanaflynn/stats"
+	"github.com/rkjdid/bitbot/movingaverage"
 	"github.com/rkjdid/util"
-	"github.com/shopspring/decimal"
 	"github.com/toorop/go-bittrex"
 	"log"
 	"strings"
 	"time"
 )
 
+var Candles = map[string]util.Duration{
+	"hour": util.Duration(time.Hour),
+}
+
+const CandleHour = "hour"
+
 type Scanner struct {
-	Pairs          []string
-	Ticker         util.Duration
-	AssessmentsLen int
-	Markets        map[string]*Market
-	client         *bittrex.Bittrex
-	stop           chan interface{}
+	Pairs   []string
+	Candle  string
+	Markets map[string]*Market
+
+	LongTerm   int
+	ShortTerm  int
+	BBLength   int
+	Multiplier float64
+
+	NotificationThreshold int // number of consecutive hits to trigger notification
+
+	client *bittrex.Bittrex
+	stop   chan interface{}
+}
+
+type MATrio struct {
+	Length      int
+	Price       *movingaverage.MovingAverage
+	Volume      *movingaverage.MovingAverage
+	PriceVolume *movingaverage.MovingAverage
 }
 
 type Market struct {
 	bittrex.Market
-	LastSnapshot bittrex.MarketSummary
-	Assessments  []Assessment
-	GlobalScore  decimal.Decimal
-}
+	Candles []bittrex.Candle
 
-func (m *Market) Assess() {
-	m.GlobalScore = decimal.Decimal{}
-	for _, a := range m.Assessments {
-		m.GlobalScore = m.GlobalScore.Add(a.Score)
-	}
-}
+	MA_P_Long   *movingaverage.MovingAverage
+	MA_P_Short  *movingaverage.MovingAverage
+	MA_PV_Long  *movingaverage.MovingAverage
+	MA_PV_Short *movingaverage.MovingAverage
+	MA_V_Long   *movingaverage.MovingAverage
+	MA_V_Short  *movingaverage.MovingAverage
 
-type Assessment struct {
-	Snapshot_t0 bittrex.MarketSummary
-	Snapshot_tN bittrex.MarketSummary
-	Volume      decimal.Decimal // volume progression between t0 & tN
-	Price       decimal.Decimal // price progression between t0 & tN
-	Score       decimal.Decimal
-}
+	BBSum *movingaverage.MovingAverage
 
-func Assess(t0 bittrex.MarketSummary, t bittrex.MarketSummary) Assessment {
-	//log.Printf("assessing %s: \n\t%v\n\t%v", t0.MarketName, t0, t)
-
-	if t0.Volume.Equals(decimal.New(0, 0)) {
-		return Assessment{}
-	}
-
-	a := Assessment{
-		Snapshot_t0: t0,
-		Snapshot_tN: t,
-		Volume:      t.BaseVolume.Div(t0.BaseVolume).Sub(decimal.New(1, 0)).Mul(decimal.New(100, 0)),
-		Price:       t.Last.Div(t0.Last).Sub(decimal.New(1, 0)).Mul(decimal.New(100, 0)),
-	}
-
-	a.Score = a.Volume.Add(a.Price)
-	return a
+	ConsecutiveHits int
+	TotalHits       int
 }
 
 func (s *Scanner) fetchMarkets() error {
@@ -76,8 +74,17 @@ func (s *Scanner) fetchMarkets() error {
 
 		for _, pair := range s.Pairs {
 			if pair == market.MarketName {
-				m := &Market{Market: market}
-				m.Assessments = []Assessment{}
+				m := &Market{
+					Market:      market,
+					MA_V_Long:   movingaverage.New(s.LongTerm),
+					MA_P_Long:   movingaverage.New(s.LongTerm),
+					MA_PV_Long:  movingaverage.New(s.LongTerm),
+					MA_V_Short:  movingaverage.New(s.ShortTerm),
+					MA_P_Short:  movingaverage.New(s.ShortTerm),
+					MA_PV_Short: movingaverage.New(s.ShortTerm),
+
+					BBSum: movingaverage.New(s.BBLength),
+				}
 				s.Markets[market.MarketName] = m
 			}
 		}
@@ -94,7 +101,7 @@ func (s *Scanner) Stop() {
 }
 
 func (s *Scanner) Scan() {
-	ticker := time.NewTicker(time.Duration(s.Ticker))
+	ticker := time.NewTicker(time.Duration(Candles[s.Candle]))
 	s.client = bittrex.New("", "")
 	s.Markets = make(map[string]*Market)
 	s.fetchMarkets()
@@ -103,25 +110,46 @@ func (s *Scanner) Scan() {
 	for {
 		for name, market := range s.Markets {
 			go func(name string, market *Market) {
-				summaries, err := s.client.GetMarketSummary(name)
+				candles, err := s.client.GetLatestTick(name, s.Candle)
 				if err != nil {
-					log.Printf("bittrex GetMarketSummary %s: %s", name, err)
+					log.Printf("bittrex GetLatestTick %s: %s", name, err)
 					return
 				}
 
-				tN := summaries[0]
-				t0 := market.LastSnapshot
-				market.LastSnapshot = tN
-				a := Assess(t0, tN)
-				if len(market.Assessments) == s.AssessmentsLen {
-					// slice full, pop first elem
-					market.Assessments = market.Assessments[1:]
+				candle := candles[0]
+				p, _ := candle.Close.Float64()
+				v, _ := candle.Volume.Float64()
+				market.MA_P_Long.Add(p)
+				market.MA_P_Short.Add(p)
+				market.MA_PV_Long.Add(p * v)
+				market.MA_PV_Short.Add(p * v)
+				market.MA_V_Long.Add(v)
+				market.MA_V_Short.Add(v)
+
+				vpc := market.MA_PV_Long.Avg()/market.MA_V_Long.Avg() - market.MA_P_Long.Avg()
+				vpr := (market.MA_PV_Short.Avg() / market.MA_V_Short.Avg()) / market.MA_P_Short.Avg()
+				vm := market.MA_V_Short.Avg() / market.MA_V_Long.Avg()
+				vpci := vpc * vpr * vm
+
+				market.BBSum.Add(vpci)
+				dev, err := stats.StandardDeviation(stats.Float64Data(market.BBSum.Values))
+				if err != nil {
+					log.Printf("%s - stats.StandardDeviation error: %s", market.MarketName, err)
+					return
 				}
-				market.Assessments = append(market.Assessments, a)
-				market.Assess()
-				log.Printf("%s - global: %s, price: %s%%, volume: %s%%, score: %s, len: %d",
-					name, market.GlobalScore.StringFixed(1), a.Price.StringFixed(1),
-					a.Volume.StringFixed(1), a.Score.StringFixed(1), len(market.Assessments))
+
+				basis := market.BBSum.Avg()
+				dev *= s.Multiplier
+				if vpci > (basis + dev) {
+					market.ConsecutiveHits += 1
+					market.TotalHits += 1
+					log.Printf("%8s hit - basis: %8.2f, dev: %8.2f, consecutive: %d, total: %3d",
+						market.MarketName, basis, dev, market.ConsecutiveHits, market.TotalHits)
+				} else {
+					market.ConsecutiveHits = 0
+				}
+				log.Printf("%8s - vpc: %5.1f, vpr: %5.1f, vm: %5.1f, basis: %5.1f, dev: %5.1f",
+					market.MarketName, vpc, vpc, vm, basis, dev)
 			}(name, market)
 		}
 
@@ -130,6 +158,5 @@ func (s *Scanner) Scan() {
 		case <-s.stop:
 			return
 		}
-		log.Println("--------------")
 	}
 }

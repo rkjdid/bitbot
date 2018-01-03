@@ -102,9 +102,12 @@ func main() {
 	log.Println("Press <Ctrl-C> to quit")
 
 	s := Scanner{
-		Pairs:          []string{"BTC-ETH", "BTC-BLOCK", "BTC-OMG", "BTC-NEO", "BTC-VTC", "BTC-BCC", "BTC-ADA", "BTC-TRUST", "BTC-GCR", "BTC-STEEM"},
-		Ticker:         util.Duration(time.Hour),
-		AssessmentsLen: 24,
+		Pairs:      []string{"BTC-ETH", "BTC-BLOCK", "BTC-OMG", "BTC-NEO", "BTC-VTC", "BTC-BCC", "BTC-ADA", "BTC-TRUST", "BTC-GCR", "BTC-STEEM"},
+		Candle:     CandleHour,
+		LongTerm:   20,
+		ShortTerm:  5,
+		BBLength:   20,
+		Multiplier: 2.5,
 	}
 
 	go s.Scan()
