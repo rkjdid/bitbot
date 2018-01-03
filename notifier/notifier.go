@@ -1,7 +1,6 @@
 package notifier
 
 import (
-	"github.com/toorop/go-bittrex"
 	"log"
 )
 

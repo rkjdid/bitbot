@@ -25,7 +25,7 @@ func (dialer *SMTPDialer) Init() {
 }
 
 func (dialer SMTPDialer) Notify(header string, body string) error {
-	return dialer.SendMailTo(dialer.Config.Subscribers, header, body)
+	return dialer.SendMail(dialer.Config.Subscribers, header, body)
 }
 
 func (dialer SMTPDialer) SendTestMail() error {
@@ -33,7 +33,7 @@ func (dialer SMTPDialer) SendTestMail() error {
 }
 
 func (dialer SMTPDialer) String() string {
-	return fmt.Sprintf("%s v%s", dialer.Config.Name, dialer.Config.Version)
+	return fmt.Sprintf("%s", dialer.Config.Name)
 }
 
 func (dialer SMTPDialer) SendMail(dst []string, header string, body string) (err error) {
