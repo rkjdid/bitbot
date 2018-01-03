@@ -168,13 +168,19 @@ func (s *Scanner) Scan() {
 				if vpci > (basis + dev) {
 					market.ConsecutiveHits += 1
 					market.TotalHits += 1
-					log.Printf("%8s hit - basis: %8.2f, dev: %8.2f, consecutive: %d, total: %3d",
+					log.Printf("--------- %15s HIT - basis: %8.2f, dev: %8.2f, consecutive: %d, total: %3d",
 						market.MarketName, basis, dev, market.ConsecutiveHits, market.TotalHits)
 				} else {
 					market.ConsecutiveHits = 0
 				}
-				log.Printf("%8s - vpc: %5.1f, vpr: %5.1f, vm: %5.1f, basis: %5.1f, dev: %5.1f",
-					market.MarketName, vpc, vpc, vm, basis, dev)
+				log.Printf("%15s - vpc: %5.1f, vpr: %5.1f, vm: %5.1f, vpci: %5.1f, basis: %5.1f, dev: %5.1f\n\t\t" +
+					"price: %5f, volume: %5f, MA_P: %5f / %5f, MA_V: %5f / %5f, MA_PV: %5f / %5f\n\n",
+					market.MarketName, vpc, vpc, vm, vpci, basis, dev,
+					p, v,
+					market.MA_P_Short.Avg(), market.MA_P_Long.Avg(),
+					market.MA_V_Short.Avg(), market.MA_V_Long.Avg(),
+					market.MA_PV_Short.Avg(), market.MA_PV_Long.Avg(),
+				)
 			}(name, market)
 		}
 
