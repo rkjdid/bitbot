@@ -123,7 +123,7 @@ func main() {
 
 	select {
 	case <-time.After(time.Second * 10):
-		log.Panicln("no clean exit after 10sec, please report panic log to https://github.com/solar3s/goregen/issues")
+		log.Panicln("quit timeout")
 	case <-cleanExit:
 	}
 }
