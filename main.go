@@ -117,7 +117,6 @@ func main() {
 	cleanExit := make(chan struct{})
 	go func() {
 		s.Stop()
-		s.Stop()
 		close(cleanExit)
 	}()
 
