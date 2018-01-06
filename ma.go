@@ -1,4 +1,4 @@
-package movingaverage
+package main
 
 // https://github.com/RobinUS2/golang-moving-average
 // taken from cause lazy
@@ -50,11 +50,33 @@ func (ma *MovingAverage) Add(val float64) {
 	}
 }
 
-func New(window int) *MovingAverage {
+func NewMovingAverage(window int) *MovingAverage {
 	return &MovingAverage{
 		Window:      window,
 		Values:      make([]float64, window),
 		valPos:      0,
 		slotsFilled: false,
 	}
+}
+
+type MATrio struct {
+	Length int
+	P      *MovingAverage
+	V      *MovingAverage
+	PV     *MovingAverage
+}
+
+func NewMATrio(length int) *MATrio {
+	return &MATrio{
+		length,
+		NewMovingAverage(length),
+		NewMovingAverage(length),
+		NewMovingAverage(length),
+	}
+}
+
+func (t *MATrio) Add(p float64, v float64) {
+	t.P.Add(p)
+	t.V.Add(v)
+	t.PV.Add(p * v)
 }
