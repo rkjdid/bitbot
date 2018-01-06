@@ -95,7 +95,8 @@ func init() {
 		log.Printf("created new config file \"%s\"", *cfgPath)
 	}
 
-	log.Printf("config file: %s\n%s", *cfgPath, cfg)
+	log.Printf("config file: %s", *cfgPath)
+	util.WriteToml(cfg, os.Stderr)
 }
 
 func main() {
