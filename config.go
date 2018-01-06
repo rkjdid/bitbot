@@ -5,15 +5,17 @@ import (
 	"time"
 )
 
+type CandleInterval string
+
 const (
-	CandleMinute    = "oneMin"
-	Candle5Minutes  = "fiveMin"
-	Candle30Minutes = "thirtyMin"
-	CandleHour      = "hour"
-	CandleDay       = "day"
+	CandleMinute    = CandleInterval("oneMin")
+	Candle5Minutes  = CandleInterval("fiveMin")
+	Candle30Minutes = CandleInterval("thirtyMin")
+	CandleHour      = CandleInterval("hour")
+	CandleDay       = CandleInterval("day")
 )
 
-var Candles = map[string]util.Duration{
+var Candles = map[CandleInterval]util.Duration{
 	CandleMinute:    util.Duration(time.Minute),
 	Candle5Minutes:  util.Duration(time.Minute * 5),
 	Candle30Minutes: util.Duration(time.Minute * 30),
@@ -33,7 +35,7 @@ type ScannerConfig struct {
 	Min24hVolume float64
 
 	// candle time string: one of "oneMin" "fiveMin" "thirtyMin" "hour" "day"
-	Candle string
+	Interval CandleInterval
 
 	// long term MA length
 	LongTerm int
@@ -51,7 +53,7 @@ type ScannerConfig struct {
 var DefaultConfig = Config{
 	Scanner: &ScannerConfig{
 		Pairs:      []string{},
-		Candle:     Candle30Minutes,
+		Interval:   Candle30Minutes,
 		LongTerm:   20,
 		ShortTerm:  5,
 		BBLength:   20,

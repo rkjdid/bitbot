@@ -6,6 +6,7 @@ import (
 
 type Market struct {
 	bittrex.Market
+	Interval   CandleInterval
 	Candles    []bittrex.Candle
 	LastCandle bittrex.Candle
 
@@ -18,11 +19,12 @@ type Market struct {
 	TotalHits       int
 }
 
-func NewMarket(market bittrex.Market, longLength, shortLength, bbLength int) *Market {
+func NewMarket(market bittrex.Market, longLength, shortLength, bbLength int, interval CandleInterval) *Market {
 	return &Market{
 		Market:   market,
 		ShortMAs: NewMATrio(shortLength),
 		LongMAs:  NewMATrio(longLength),
 		BBSum:    NewMovingAverage(bbLength),
+		Interval: interval,
 	}
 }
