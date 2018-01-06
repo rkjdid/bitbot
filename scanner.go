@@ -122,7 +122,7 @@ func (s *Scanner) Scan() {
 				bv, _ := candle.BaseVolume.Float64()
 				log.Printf("%15s - vpc: %8f, vpr: %8f, vm: %8f, vpci: %8f, basis: %8f, dev: %8f\n\t\t"+
 					"candle: %s, price: %8f, btc_vol: %8f, MA_P: %8f / %8f, MA_V: %8f / %8f, MA_PV: %8f / %8f",
-					market.MarketName, vpc, vpc, vm, vpci, basis, dev,
+					market.MarketName, vpc, vpr, vm, vpci, basis, dev,
 					util.ParisTime(candle.TimeStamp.Time), p, bv,
 					market.ShortMAs.P.Avg(), market.LongMAs.P.Avg(),
 					market.ShortMAs.V.Avg(), market.LongMAs.V.Avg(),
