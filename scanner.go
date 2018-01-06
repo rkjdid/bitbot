@@ -10,15 +10,18 @@ import (
 )
 
 type Scanner struct {
-	Config *ScannerConfig
-
+	Config  *ScannerConfig
 	Markets map[string]*Market
-	client  *bittrex.Bittrex
+	Client  *bittrex.Bittrex
 	stop    chan interface{}
 }
 
+func (s *Scanner) NewMarket(market bittrex.Market) *Market {
+	return NewMarket(market, s.Config.ShortTerm, s.Config.LongTerm, s.Config.BBLength, s.Config.Interval, s.Client)
+}
+
 func (s *Scanner) fetchMarkets() error {
-	markets, err := s.client.GetMarkets()
+	markets, err := s.Client.GetMarkets()
 	if err != nil {
 		return err
 	}
@@ -34,8 +37,7 @@ func (s *Scanner) fetchMarkets() error {
 		}
 
 		trackMarket := func(name string) {
-			s.Markets[name] =
-				NewMarket(market, s.Config.LongTerm, s.Config.ShortTerm, s.Config.BBLength, s.Config.Interval)
+			s.Markets[name] = s.NewMarket(market)
 		}
 
 		name := market.MarketName
@@ -65,7 +67,7 @@ func (s *Scanner) Stop() {
 
 func (s *Scanner) Scan() {
 	ticker := time.NewTicker(time.Duration(Candles[s.Config.Interval]))
-	s.client = bittrex.New("", "")
+	s.Client = bittrex.New("", "")
 	s.Markets = make(map[string]*Market)
 	s.fetchMarkets()
 	s.stop = make(chan interface{}, 1)
@@ -76,7 +78,7 @@ func (s *Scanner) Scan() {
 				var candle = market.LastCandle
 				for {
 					time.After(time.Second)
-					candles, err := s.client.GetLatestTick(name, string(market.Interval))
+					candles, err := s.Client.GetLatestTick(name, string(market.Interval))
 					if err != nil {
 						log.Printf("bittrex GetLatestTick %s: %s", name, err)
 						return

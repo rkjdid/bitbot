@@ -17,14 +17,19 @@ type Market struct {
 
 	ConsecutiveHits int
 	TotalHits       int
+
+	Client *bittrex.Bittrex
 }
 
-func NewMarket(market bittrex.Market, longLength, shortLength, bbLength int, interval CandleInterval) *Market {
+func NewMarket(market bittrex.Market, longLength, shortLength, bbLength int,
+	interval CandleInterval, client *bittrex.Bittrex) *Market {
+
 	return &Market{
 		Market:   market,
 		ShortMAs: NewMATrio(shortLength),
 		LongMAs:  NewMATrio(longLength),
 		BBSum:    NewMovingAverage(bbLength),
 		Interval: interval,
+		Client:   client,
 	}
 }
