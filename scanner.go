@@ -72,7 +72,6 @@ func (s *Scanner) Scan() {
 
 	for {
 		for name, market := range s.Markets {
-			// short throttle to avoid spawning to many goroutines at once
 			go func(name string, market *Market) {
 				var candle = market.LastCandle
 				for {
