@@ -2,11 +2,10 @@ package main
 
 import (
 	"github.com/montanaflynn/stats"
-	"github.com/rkjdid/bitbot/movingaverage"
+	"github.com/rkjdid/util"
 	"github.com/toorop/go-bittrex"
 	"log"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -16,23 +15,6 @@ type Scanner struct {
 	Markets map[string]*Market
 	client  *bittrex.Bittrex
 	stop    chan interface{}
-}
-
-type Market struct {
-	bittrex.Market
-	Candles []bittrex.Candle
-
-	MA_P_Long   *movingaverage.MovingAverage
-	MA_P_Short  *movingaverage.MovingAverage
-	MA_PV_Long  *movingaverage.MovingAverage
-	MA_PV_Short *movingaverage.MovingAverage
-	MA_V_Long   *movingaverage.MovingAverage
-	MA_V_Short  *movingaverage.MovingAverage
-
-	BBSum *movingaverage.MovingAverage
-
-	ConsecutiveHits int
-	TotalHits       int
 }
 
 func (s *Scanner) fetchMarkets() error {
@@ -51,35 +33,22 @@ func (s *Scanner) fetchMarkets() error {
 			continue
 		}
 
-		if s.Config.Pairs == nil || len(s.Config.Pairs) == 0 {
-			m := &Market{
-				Market:      market,
-				MA_V_Long:   movingaverage.New(s.Config.LongTerm),
-				MA_P_Long:   movingaverage.New(s.Config.LongTerm),
-				MA_PV_Long:  movingaverage.New(s.Config.LongTerm),
-				MA_V_Short:  movingaverage.New(s.Config.ShortTerm),
-				MA_P_Short:  movingaverage.New(s.Config.ShortTerm),
-				MA_PV_Short: movingaverage.New(s.Config.ShortTerm),
-
-				BBSum: movingaverage.New(s.Config.BBLength),
-			}
-			s.Markets[market.MarketName] = m
+		trackMarket := func(name string) {
+			s.Markets[name] =
+				NewMarket(market, s.Config.LongTerm, s.Config.ShortTerm, s.Config.BBLength)
 		}
 
-		for _, pair := range s.Config.Pairs {
-			if pair == market.MarketName {
-				m := &Market{
-					Market:      market,
-					MA_V_Long:   movingaverage.New(s.Config.LongTerm),
-					MA_P_Long:   movingaverage.New(s.Config.LongTerm),
-					MA_PV_Long:  movingaverage.New(s.Config.LongTerm),
-					MA_V_Short:  movingaverage.New(s.Config.ShortTerm),
-					MA_P_Short:  movingaverage.New(s.Config.ShortTerm),
-					MA_PV_Short: movingaverage.New(s.Config.ShortTerm),
-
-					BBSum: movingaverage.New(s.Config.BBLength),
+		name := market.MarketName
+		if s.Config.Pairs == nil || len(s.Config.Pairs) == 0 {
+			// no filter, track all markets
+			trackMarket(name)
+		} else {
+			// else only track this market if it is in Config.Pairs filter
+			for _, pair := range s.Config.Pairs {
+				if pair == name {
+					trackMarket(name)
+					break
 				}
-				s.Markets[market.MarketName] = m
 			}
 		}
 	}
@@ -103,6 +72,9 @@ func (s *Scanner) Scan() {
 
 	for {
 		for name, market := range s.Markets {
+			// short throttle to avoid spawning to many goroutines at once
+			time.After(time.Second)
+
 			go func(name string, market *Market) {
 				candles, err := s.client.GetLatestTick(name, s.Config.Candle)
 				if err != nil {
@@ -113,16 +85,12 @@ func (s *Scanner) Scan() {
 				candle := candles[0]
 				p, _ := candle.Close.Float64()
 				v, _ := candle.Volume.Float64()
-				market.MA_P_Long.Add(p)
-				market.MA_P_Short.Add(p)
-				market.MA_PV_Long.Add(p * v)
-				market.MA_PV_Short.Add(p * v)
-				market.MA_V_Long.Add(v)
-				market.MA_V_Short.Add(v)
+				market.ShortMAs.Add(p, v)
+				market.LongMAs.Add(p, v)
 
-				vpc := market.MA_PV_Long.Avg()/market.MA_V_Long.Avg() - market.MA_P_Long.Avg()
-				vpr := (market.MA_PV_Short.Avg() / market.MA_V_Short.Avg()) / market.MA_P_Short.Avg()
-				vm := market.MA_V_Short.Avg() / market.MA_V_Long.Avg()
+				vpc := market.LongMAs.PV.Avg()/market.LongMAs.V.Avg() - market.LongMAs.P.Avg()
+				vpr := market.ShortMAs.PV.Avg() / market.ShortMAs.V.Avg() / market.ShortMAs.P.Avg()
+				vm := market.ShortMAs.V.Avg() / market.LongMAs.V.Avg()
 				vpci := vpc * vpr * vm
 
 				market.BBSum.Add(vpci)
@@ -143,14 +111,15 @@ func (s *Scanner) Scan() {
 				} else {
 					market.ConsecutiveHits = 0
 				}
+
+				bv, _ := candle.BaseVolume.Float64()
 				log.Printf("%15s - vpc: %8f, vpr: %8f, vm: %8f, vpci: %8f, basis: %8f, dev: %8f\n\t\t"+
-					"price: %8f, base_volume: %8f, MA_P: %8f / %8f, MA_V: %8f / %8f, MA_PV: %8f / %8f\n\t\tcandle: %#v\n\n",
+					"candle: %s, price: %8f, btc_vol: %8f, MA_P: %8f / %8f, MA_V: %8f / %8f, MA_PV: %8f / %8f",
 					market.MarketName, vpc, vpc, vm, vpci, basis, dev,
-					p, v,
-					market.MA_P_Short.Avg(), market.MA_P_Long.Avg(),
-					market.MA_V_Short.Avg(), market.MA_V_Long.Avg(),
-					market.MA_PV_Short.Avg(), market.MA_PV_Long.Avg(),
-					candle,
+					util.ParisTime(candle.TimeStamp.Time), p, bv,
+					market.ShortMAs.P.Avg(), market.LongMAs.P.Avg(),
+					market.ShortMAs.V.Avg(), market.LongMAs.V.Avg(),
+					market.ShortMAs.PV.Avg(), market.LongMAs.PV.Avg(),
 				)
 			}(name, market)
 		}

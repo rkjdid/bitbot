@@ -29,6 +29,9 @@ type ScannerConfig struct {
 	// only pick those markets, if nil or empty all BTC markets are monitored
 	Pairs []string
 
+	// only pick markets whose 24h volume is greater than
+	Min24hVolume float64
+
 	// candle time string: one of "oneMin" "fiveMin" "thirtyMin" "hour" "day"
 	Candle string
 
