@@ -3,50 +3,19 @@ package main
 import (
 	"github.com/montanaflynn/stats"
 	"github.com/rkjdid/bitbot/movingaverage"
-	"github.com/rkjdid/util"
 	"github.com/toorop/go-bittrex"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
-const (
-	CandleMinute    = "oneMin"
-	Candle5Minutes  = "fiveMin"
-	Candle30Minutes = "thirtyMin"
-	CandleHour      = "hour"
-	CandleDay       = "day"
-)
-
-var Candles = map[string]util.Duration{
-	CandleMinute:    util.Duration(time.Minute),
-	Candle5Minutes:  util.Duration(time.Minute * 5),
-	Candle30Minutes: util.Duration(time.Minute * 30),
-	CandleHour:      util.Duration(time.Hour),
-	CandleDay:       util.Duration(time.Hour * 24),
-}
-
 type Scanner struct {
-	Pairs   []string
-	Candle  string
+	Config *ScannerConfig
+
 	Markets map[string]*Market
-
-	LongTerm   int
-	ShortTerm  int
-	BBLength   int
-	Multiplier float64
-
-	NotificationThreshold int // number of consecutive hits to trigger notification
-
-	client *bittrex.Bittrex
-	stop   chan interface{}
-}
-
-type MATrio struct {
-	Length      int
-	Price       *movingaverage.MovingAverage
-	Volume      *movingaverage.MovingAverage
-	PriceVolume *movingaverage.MovingAverage
+	client  *bittrex.Bittrex
+	stop    chan interface{}
 }
 
 type Market struct {
@@ -82,33 +51,33 @@ func (s *Scanner) fetchMarkets() error {
 			continue
 		}
 
-		if s.Pairs == nil || len(s.Pairs) == 0 {
+		if s.Config.Pairs == nil || len(s.Config.Pairs) == 0 {
 			m := &Market{
 				Market:      market,
-				MA_V_Long:   movingaverage.New(s.LongTerm),
-				MA_P_Long:   movingaverage.New(s.LongTerm),
-				MA_PV_Long:  movingaverage.New(s.LongTerm),
-				MA_V_Short:  movingaverage.New(s.ShortTerm),
-				MA_P_Short:  movingaverage.New(s.ShortTerm),
-				MA_PV_Short: movingaverage.New(s.ShortTerm),
+				MA_V_Long:   movingaverage.New(s.Config.LongTerm),
+				MA_P_Long:   movingaverage.New(s.Config.LongTerm),
+				MA_PV_Long:  movingaverage.New(s.Config.LongTerm),
+				MA_V_Short:  movingaverage.New(s.Config.ShortTerm),
+				MA_P_Short:  movingaverage.New(s.Config.ShortTerm),
+				MA_PV_Short: movingaverage.New(s.Config.ShortTerm),
 
-				BBSum: movingaverage.New(s.BBLength),
+				BBSum: movingaverage.New(s.Config.BBLength),
 			}
 			s.Markets[market.MarketName] = m
 		}
 
-		for _, pair := range s.Pairs {
+		for _, pair := range s.Config.Pairs {
 			if pair == market.MarketName {
 				m := &Market{
 					Market:      market,
-					MA_V_Long:   movingaverage.New(s.LongTerm),
-					MA_P_Long:   movingaverage.New(s.LongTerm),
-					MA_PV_Long:  movingaverage.New(s.LongTerm),
-					MA_V_Short:  movingaverage.New(s.ShortTerm),
-					MA_P_Short:  movingaverage.New(s.ShortTerm),
-					MA_PV_Short: movingaverage.New(s.ShortTerm),
+					MA_V_Long:   movingaverage.New(s.Config.LongTerm),
+					MA_P_Long:   movingaverage.New(s.Config.LongTerm),
+					MA_PV_Long:  movingaverage.New(s.Config.LongTerm),
+					MA_V_Short:  movingaverage.New(s.Config.ShortTerm),
+					MA_P_Short:  movingaverage.New(s.Config.ShortTerm),
+					MA_PV_Short: movingaverage.New(s.Config.ShortTerm),
 
-					BBSum: movingaverage.New(s.BBLength),
+					BBSum: movingaverage.New(s.Config.BBLength),
 				}
 				s.Markets[market.MarketName] = m
 			}
@@ -126,7 +95,7 @@ func (s *Scanner) Stop() {
 }
 
 func (s *Scanner) Scan() {
-	ticker := time.NewTicker(time.Duration(Candles[s.Candle]))
+	ticker := time.NewTicker(time.Duration(Candles[s.Config.Candle]))
 	s.client = bittrex.New("", "")
 	s.Markets = make(map[string]*Market)
 	s.fetchMarkets()
@@ -135,7 +104,7 @@ func (s *Scanner) Scan() {
 	for {
 		for name, market := range s.Markets {
 			go func(name string, market *Market) {
-				candles, err := s.client.GetLatestTick(name, s.Candle)
+				candles, err := s.client.GetLatestTick(name, s.Config.Candle)
 				if err != nil {
 					log.Printf("bittrex GetLatestTick %s: %s", name, err)
 					return
@@ -164,7 +133,8 @@ func (s *Scanner) Scan() {
 				}
 
 				basis := market.BBSum.Avg()
-				dev *= s.Multiplier
+				dev *= s.Config.Multiplier
+
 				if vpci > (basis + dev) {
 					market.ConsecutiveHits += 1
 					market.TotalHits += 1

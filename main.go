@@ -87,7 +87,7 @@ func init() {
 		if !os.IsNotExist(err) {
 			log.Fatalf("error reading config \"%s\": %s", *cfgPath, err)
 		}
-		cfg = &Config{}
+		cfg = &DefaultConfig
 		err = util.WriteTomlFile(cfg, *cfgPath)
 		if err != nil {
 			log.Fatalf("error creating config file \"%s\": %s", *cfgPath, err)
@@ -95,19 +95,14 @@ func init() {
 		log.Printf("created new config file \"%s\"", *cfgPath)
 	}
 
-	log.Printf("using config file: %s", *cfgPath)
+	log.Printf("config file: %s\n%s", *cfgPath, cfg)
 }
 
 func main() {
 	log.Println("Press <Ctrl-C> to quit")
 
 	s := Scanner{
-		Pairs:      []string{"BTC-ETH", "BTC-BLOCK", "BTC-OMG", "BTC-NEO", "BTC-VTC", "BTC-BCC", "BTC-ADA", "BTC-TRUST", "BTC-GCR", "BTC-STEEM"},
-		Candle:     Candle30Minutes,
-		LongTerm:   20,
-		ShortTerm:  5,
-		BBLength:   20,
-		Multiplier: 2.5,
+		Config: cfg.Scanner,
 	}
 
 	go s.Scan()

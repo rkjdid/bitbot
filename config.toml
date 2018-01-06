@@ -1,0 +1,7 @@
+[Scanner]
+  Candle = "thirtyMin"
+  LongTerm = 20
+  ShortTerm = 5
+  BBLength = 20
+  Multiplier = 2.5
+  NotificationThreshold = 0
