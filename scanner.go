@@ -73,16 +73,23 @@ func (s *Scanner) Scan() {
 	for {
 		for name, market := range s.Markets {
 			// short throttle to avoid spawning to many goroutines at once
-			time.After(time.Second)
-
 			go func(name string, market *Market) {
-				candles, err := s.client.GetLatestTick(name, s.Config.Candle)
-				if err != nil {
-					log.Printf("bittrex GetLatestTick %s: %s", name, err)
-					return
+				var candle = market.LastCandle
+				for {
+					time.After(time.Second)
+					candles, err := s.client.GetLatestTick(name, s.Config.Candle)
+					if err != nil {
+						log.Printf("bittrex GetLatestTick %s: %s", name, err)
+						return
+					}
+					candle = candles[0]
+					if candle.TimeStamp.Time != market.LastCandle.TimeStamp.Time {
+						break
+					}
+					<-time.After(time.Second * 15)
 				}
 
-				candle := candles[0]
+				market.LastCandle = candle
 				p, _ := candle.Close.Float64()
 				v, _ := candle.Volume.Float64()
 				market.ShortMAs.Add(p, v)

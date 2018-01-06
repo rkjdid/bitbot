@@ -7,7 +7,8 @@ import (
 
 type Market struct {
 	bittrex.Market
-	Candles []bittrex.Candle
+	Candles    []bittrex.Candle
+	LastCandle bittrex.Candle
 
 	ShortMAs *MATrio
 	LongMAs  *MATrio
