@@ -23,6 +23,8 @@ var (
 	cfgPath  = flag.String("cfg", "", "path to config (defaults to <root>/config.toml)")
 	rootPath = flag.String("root", "", "path to goregen's main directory (defaults to executable path)")
 	logDir   = flag.String("log", "", "path to logs directory (defaults to <root>/log)")
+	analyze  = flag.String("analyze", "", "full analyze of provided market & exit")
+	verbose  = flag.Bool("v", false, "increase verbosity")
 	version  = flag.Bool("version", false, "print version & exit")
 )
 
@@ -105,12 +107,16 @@ func init() {
 }
 
 func main() {
-	log.Println("Press <Ctrl-C> to quit")
-
-	s := Scanner{
-		Config: cfg.Scanner,
+	s := NewScanner(cfg.Scanner)
+	if len(*analyze) > 0 {
+		err := s.Analyze(*analyze)
+		if err != nil {
+			log.Fatalf("AnalyzeMarket(%s): %s", *analyze, err)
+		}
+		os.Exit(0)
 	}
 
+	log.Println("Press <Ctrl-C> to quit")
 	go s.Scan()
 
 	trap := make(chan os.Signal)

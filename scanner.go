@@ -13,6 +13,14 @@ type Scanner struct {
 	stop    chan interface{}
 }
 
+func NewScanner(cfg *ScannerConfig) *Scanner {
+	return &Scanner{
+		Config:  cfg,
+		Client:  bittrex.New("", ""),
+		Markets: make(map[string]*Market),
+	}
+}
+
 func (s *Scanner) NewMarket(market bittrex.Market) *Market {
 	return NewMarket(market, s.Config.ShortTerm, s.Config.LongTerm,
 		s.Config.BBLength, s.Config.Interval, s.Config.Multiplier, s.Client)
@@ -84,10 +92,7 @@ func (s *Scanner) Stop() {
 }
 
 func (s *Scanner) Scan() {
-	s.Client = bittrex.New("", "")
-	s.Markets = make(map[string]*Market)
 	s.fetchMarkets()
-
 	log.Printf("%d tracked markets", len(s.Markets))
 	for _, market := range s.Markets {
 		go market.StartPolling()
@@ -101,4 +106,21 @@ func (s *Scanner) Scan() {
 		}
 		return
 	}
+}
+
+func (s *Scanner) Analyze(marketName string) error {
+	m := s.NewMarket(bittrex.Market{MarketName: marketName})
+	candles, err := s.Client.GetTicks(marketName, string(s.Config.Interval))
+	if err != nil {
+		return err
+	}
+
+	for _, c := range candles {
+		if m.AddCandle(c, false) {
+			log.Printf("%18s HIT - consecutive: %d, total: %3d",
+				m.MarketName, m.ConsecutiveHits, m.TotalHits)
+		}
+	}
+
+	return nil
 }
