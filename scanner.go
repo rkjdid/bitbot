@@ -56,9 +56,9 @@ func (s *Scanner) fetchMarkets() error {
 			}
 
 			bv, _ := summary[0].BaseVolume.Float64()
-			if s.Config.MinBtcVolumeDaily < bv {
+			if bv < s.Config.MinBtcVolumeDaily {
 				// filter out low volume markets
-				log.Printf("filtering out low volume market %#v", summary)
+				log.Printf("filtering out low volume market %s (base vol: %5f)", name, bv)
 				continue
 			}
 		}
