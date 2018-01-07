@@ -58,8 +58,8 @@ var DefaultConfig = Config{
 		ShortTerm:             5,
 		BBLength:              20,
 		Multiplier:            2.5,
-		MinBtcVolumeDaily:     500.0,
-		NotificationThreshold: 2,
+		MinBtcVolumeDaily:     200.0,
+		NotificationThreshold: 0,
 	},
 }
 
