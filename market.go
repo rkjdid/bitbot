@@ -89,7 +89,7 @@ func (m *Market) FillCandles() error {
 		sz = len(candles)
 	}
 
-	for i := len(candles) - sz; i < sz; i++ {
+	for i := len(candles) - sz; i < len(candles); i++ {
 		m.AddCandle(candles[i], true)
 	}
 	return nil
