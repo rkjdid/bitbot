@@ -1,12 +1,9 @@
 package main
 
 import (
-	"github.com/montanaflynn/stats"
-	"github.com/rkjdid/util"
 	"github.com/toorop/go-bittrex"
 	"log"
 	"strings"
-	"time"
 )
 
 type Scanner struct {
@@ -17,7 +14,8 @@ type Scanner struct {
 }
 
 func (s *Scanner) NewMarket(market bittrex.Market) *Market {
-	return NewMarket(market, s.Config.ShortTerm, s.Config.LongTerm, s.Config.BBLength, s.Config.Interval, s.Client)
+	return NewMarket(market, s.Config.ShortTerm, s.Config.LongTerm,
+		s.Config.BBLength, s.Config.Interval, s.Config.Multiplier, s.Client)
 }
 
 func (s *Scanner) fetchMarkets() error {
@@ -27,28 +25,47 @@ func (s *Scanner) fetchMarkets() error {
 	}
 
 	for _, market := range markets {
+		name := market.MarketName
 		if !market.IsActive {
 			// only monitor active markets
 			continue
 		}
-		if strings.Index(market.MarketName, "BTC") == -1 {
+		if strings.Index(name, "BTC") != 0 {
 			// only monitor btc markets
 			continue
 		}
 
-		trackMarket := func(name string) {
-			s.Markets[name] = s.NewMarket(market)
+		summary, err := s.Client.GetMarketSummary(name)
+		if err != nil {
+			log.Printf("error retreiving market history for %s: %s", market.MarketName, err)
+			continue
 		}
 
-		name := market.MarketName
+		bv, _ := summary[0].BaseVolume.Float64()
+		if s.Config.MinBtcVolumeDaily < bv {
+			// filter out low volume markets
+			log.Printf("filtering out low volume market %s", market)
+			continue
+		}
+
+		initMarket := func(market bittrex.Market) {
+			m := s.NewMarket(market)
+			err := m.FillCandles()
+			if err != nil {
+				log.Printf("error filling candles for %s: %s", market.MarketName, err)
+				return
+			}
+			s.Markets[market.MarketName] = m
+		}
+
 		if s.Config.Pairs == nil || len(s.Config.Pairs) == 0 {
 			// no filter, track all markets
-			trackMarket(name)
+			initMarket(market)
 		} else {
 			// else only track this market if it is in Config.Pairs filter
 			for _, pair := range s.Config.Pairs {
 				if pair == name {
-					trackMarket(name)
+					initMarket(market)
 					break
 				}
 			}
@@ -66,76 +83,20 @@ func (s *Scanner) Stop() {
 }
 
 func (s *Scanner) Scan() {
-	ticker := time.NewTicker(time.Duration(Candles[s.Config.Interval]))
 	s.Client = bittrex.New("", "")
 	s.Markets = make(map[string]*Market)
 	s.fetchMarkets()
+
+	for _, market := range s.Markets {
+		go market.StartPolling()
+	}
+
 	s.stop = make(chan interface{}, 1)
-
-	for {
-		for name, market := range s.Markets {
-			go func(name string, market *Market) {
-				var candle = market.LastCandle
-				for {
-					time.After(time.Second)
-					candles, err := s.Client.GetLatestTick(name, string(market.Interval))
-					if err != nil {
-						log.Printf("bittrex GetLatestTick %s: %s", name, err)
-						return
-					}
-					candle = candles[0]
-					if candle.TimeStamp.Time != market.LastCandle.TimeStamp.Time {
-						break
-					}
-					<-time.After(time.Second * 15)
-				}
-
-				market.LastCandle = candle
-				p, _ := candle.Close.Float64()
-				v, _ := candle.Volume.Float64()
-				market.ShortMAs.Add(p, v)
-				market.LongMAs.Add(p, v)
-
-				vpc := market.LongMAs.PV.Avg()/market.LongMAs.V.Avg() - market.LongMAs.P.Avg()
-				vpr := market.ShortMAs.PV.Avg() / market.ShortMAs.V.Avg() / market.ShortMAs.P.Avg()
-				vm := market.ShortMAs.V.Avg() / market.LongMAs.V.Avg()
-				vpci := vpc * vpr * vm
-
-				market.BBSum.Add(vpci)
-				dev, err := stats.StandardDeviation(stats.Float64Data(market.BBSum.Values))
-				if err != nil {
-					log.Printf("%s - stats.StandardDeviation error: %s", market.MarketName, err)
-					return
-				}
-
-				basis := market.BBSum.Avg()
-				dev *= s.Config.Multiplier
-
-				if vpci > (basis + dev) {
-					market.ConsecutiveHits += 1
-					market.TotalHits += 1
-					log.Printf("--------- %18s HIT - price: %8f, consecutive: %d, total: %3d",
-						market.MarketName, p, market.ConsecutiveHits, market.TotalHits)
-				} else {
-					market.ConsecutiveHits = 0
-				}
-
-				bv, _ := candle.BaseVolume.Float64()
-				log.Printf("%15s - vpc: %8f, vpr: %8f, vm: %8f, vpci: %8f, basis: %8f, dev: %8f\n\t\t"+
-					"candle: %s, price: %8f, btc_vol: %8f, MA_P: %8f / %8f, MA_V: %8f / %8f, MA_PV: %8f / %8f",
-					market.MarketName, vpc, vpr, vm, vpci, basis, dev,
-					util.ParisTime(candle.TimeStamp.Time), p, bv,
-					market.ShortMAs.P.Avg(), market.LongMAs.P.Avg(),
-					market.ShortMAs.V.Avg(), market.LongMAs.V.Avg(),
-					market.ShortMAs.PV.Avg(), market.LongMAs.PV.Avg(),
-				)
-			}(name, market)
+	select {
+	case <-s.stop:
+		for _, market := range s.Markets {
+			market.Stop()
 		}
-
-		select {
-		case <-ticker.C:
-		case <-s.stop:
-			return
-		}
+		return
 	}
 }

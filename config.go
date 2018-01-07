@@ -31,8 +31,8 @@ type ScannerConfig struct {
 	// only pick those markets, if nil or empty all BTC markets are monitored
 	Pairs []string
 
-	// only pick markets whose 24h volume is greater than
-	Min24hVolume float64
+	// only pick markets whose daily volume is greater than
+	MinBtcVolumeDaily float64
 
 	// candle time string: one of "oneMin" "fiveMin" "thirtyMin" "hour" "day"
 	Interval CandleInterval
@@ -52,11 +52,19 @@ type ScannerConfig struct {
 
 var DefaultConfig = Config{
 	Scanner: &ScannerConfig{
-		Pairs:      []string{},
-		Interval:   Candle30Minutes,
-		LongTerm:   20,
-		ShortTerm:  5,
-		BBLength:   20,
-		Multiplier: 2.5,
+		Pairs:                 []string{},
+		Interval:              Candle30Minutes,
+		LongTerm:              20,
+		ShortTerm:             5,
+		BBLength:              20,
+		Multiplier:            2.5,
+		MinBtcVolumeDaily:     500.0,
+		NotificationThreshold: 2,
 	},
+}
+
+// IsValid checks that we're working with a meaningful config, preventing from
+// using malformed config & potentially panic-ing around.
+func (cfg Config) IsValid() bool {
+	return cfg.Scanner.BBLength > 0 && cfg.Scanner.LongTerm > cfg.Scanner.ShortTerm && cfg.Scanner.ShortTerm > 0
 }
