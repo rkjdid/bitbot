@@ -164,7 +164,6 @@ func (m *Market) StartPolling() {
 		}
 		c = candles[0]
 		if !m.IsCandleNew(c) {
-			log.Println("no new candle for", m)
 			timer.Reset(shortPoll)
 			goto sleep
 		}
