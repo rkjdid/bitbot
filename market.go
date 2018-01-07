@@ -156,31 +156,33 @@ func (m *Market) StartPolling() {
 
 	m.stop = make(chan interface{})
 	for {
+		candles, err := m.Client.GetLatestTick(name, string(m.Interval))
+		if err != nil {
+			log.Printf("bittrex GetLatestTick %s: %s", name, err)
+			timer.Reset(shortPoll)
+			goto sleep
+		}
+		c = candles[0]
+		if !m.IsCandleNew(c) {
+			log.Println("no new candle for", m)
+			timer.Reset(shortPoll)
+			goto sleep
+		}
+
+		if m.AddCandle(c, false) {
+			log.Printf("%18s HIT - consecutive: %d, total: %3d",
+				m.MarketName, m.ConsecutiveHits, m.TotalHits)
+		}
+		// we have new value, long poll
+		timer.Reset(longPoll)
+
+	sleep:
 		select {
 		case <-m.stop:
 			return
 		case <-timer.C:
 			// default to short poll
 			timer.Reset(shortPoll)
-		}
-
-		candles, err := m.Client.GetLatestTick(name, string(m.Interval))
-		if err != nil {
-			log.Printf("bittrex GetLatestTick %s: %s", name, err)
-			continue
-		}
-		c = candles[0]
-		if !m.IsCandleNew(c) {
-			log.Println("no new candle for", m)
-			continue
-		}
-
-		// we have new value, long poll
-		timer.Reset(longPoll)
-
-		if m.AddCandle(c, false) {
-			log.Printf("%18s HIT - consecutive: %d, total: %3d",
-				m.MarketName, m.ConsecutiveHits, m.TotalHits)
 		}
 	}
 }
