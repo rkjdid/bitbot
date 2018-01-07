@@ -30,46 +30,47 @@ func (s *Scanner) fetchMarkets() error {
 			// only monitor active markets
 			continue
 		}
-		if strings.Index(name, "BTC") != 0 {
-			// only monitor btc markets
-			continue
-		}
 
-		summary, err := s.Client.GetMarketSummary(name)
-		if err != nil {
-			log.Printf("error retreiving market history for %s: %s", market.MarketName, err)
-			continue
-		}
-
-		bv, _ := summary[0].BaseVolume.Float64()
-		if s.Config.MinBtcVolumeDaily < bv {
-			// filter out low volume markets
-			log.Printf("filtering out low volume market %s", market)
-			continue
-		}
-
-		initMarket := func(market bittrex.Market) {
-			m := s.NewMarket(market)
-			err := m.FillCandles()
-			if err != nil {
-				log.Printf("error filling candles for %s: %s", market.MarketName, err)
-				return
-			}
-			s.Markets[market.MarketName] = m
-		}
-
-		if s.Config.Pairs == nil || len(s.Config.Pairs) == 0 {
-			// no filter, track all markets
-			initMarket(market)
-		} else {
-			// else only track this market if it is in Config.Pairs filter
+		if s.Config.Pairs != nil && len(s.Config.Pairs) > 0 {
+			// only track this market if it is in Config.Pairs filter
+			trackMarket := false
 			for _, pair := range s.Config.Pairs {
-				if pair == name {
-					initMarket(market)
+				if pair == market.MarketName {
+					trackMarket = true
 					break
 				}
 			}
+			if !trackMarket {
+				continue
+			}
+		} else {
+			if strings.Index(name, "BTC") != 0 {
+				// only monitor btc markets
+				continue
+			}
+
+			summary, err := s.Client.GetMarketSummary(name)
+			if err != nil {
+				log.Printf("error retreiving market history for %s: %s", name, err)
+				continue
+			}
+
+			bv, _ := summary[0].BaseVolume.Float64()
+			if s.Config.MinBtcVolumeDaily < bv {
+				// filter out low volume markets
+				log.Printf("filtering out low volume market %#v", summary)
+				continue
+			}
 		}
+
+		m := s.NewMarket(market)
+		err = m.FillCandles()
+		if err != nil {
+			log.Printf("error filling candles for %s: %s", market.MarketName, err)
+			continue
+		}
+		s.Markets[name] = m
+		log.Println("tracking market", name)
 	}
 	return nil
 }
