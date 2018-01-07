@@ -15,7 +15,8 @@ import (
 const Version = "v0"
 
 var (
-	cfg *Config
+	cfg    *Config
+	logger io.Writer
 )
 
 var (
@@ -76,7 +77,8 @@ func init() {
 	}
 
 	// log to both Stderr & logFile
-	log.SetOutput(io.MultiWriter(logFile, os.Stderr))
+	logger = io.MultiWriter(logFile, os.Stderr)
+	log.SetOutput(logger)
 
 	// load config
 	if *cfgPath == "" {
@@ -99,7 +101,7 @@ func init() {
 	}
 
 	log.Printf("config file: %s", *cfgPath)
-	util.WriteToml(cfg, os.Stderr)
+	util.WriteToml(cfg, logger)
 }
 
 func main() {
