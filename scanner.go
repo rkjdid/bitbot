@@ -92,7 +92,7 @@ func (s *Scanner) Scan() {
 		go market.StartPolling()
 	}
 
-	s.stop = make(chan interface{}, 1)
+	s.stop = make(chan interface{})
 	select {
 	case <-s.stop:
 		for _, market := range s.Markets {
