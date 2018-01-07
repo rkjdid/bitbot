@@ -88,6 +88,7 @@ func (s *Scanner) Scan() {
 	s.Markets = make(map[string]*Market)
 	s.fetchMarkets()
 
+	log.Printf("now scanning %d markets", len(s.Markets))
 	for _, market := range s.Markets {
 		go market.StartPolling()
 	}
