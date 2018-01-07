@@ -154,7 +154,6 @@ func (m *Market) StartPolling() {
 		c         bittrex.Candle
 	)
 
-	log.Println(shortPoll, longPoll, time.Duration(Candles[m.Interval]))
 	m.stop = make(chan interface{})
 	for {
 		select {
