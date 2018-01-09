@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/montanaflynn/stats"
 	"github.com/rkjdid/util"
+	"github.com/shopspring/decimal"
 	"github.com/toorop/go-bittrex"
 	"log"
 	"time"
@@ -99,22 +100,22 @@ func (m *Market) FillCandles() error {
 // and returning true if added candle was a hit.
 func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 	m.LastCandle = c
-	p, _ := c.Close.Float64()
-	v, _ := c.Volume.Float64()
+	p := c.Close
+	v := c.Volume
 	m.ShortMAs.Add(p, v)
 	m.LongMAs.Add(p, v)
 
-	vpc := m.LongMAs.PV.Avg()/m.LongMAs.V.Avg() - m.LongMAs.P.Avg()
-	vpr := m.ShortMAs.PV.Avg() / m.ShortMAs.V.Avg() / m.ShortMAs.P.Avg()
-	vm := m.ShortMAs.V.Avg() / m.LongMAs.V.Avg()
-	vpci := vpc * vpr * vm
+	vpc := (m.LongMAs.PV.Avg().Div(m.LongMAs.V.Avg())).Sub(m.LongMAs.P.Avg())
+	vpr := (m.ShortMAs.PV.Avg().Div(m.ShortMAs.V.Avg())).Div(m.ShortMAs.P.Avg())
+	vm := m.ShortMAs.V.Avg().Div(m.LongMAs.V.Avg())
+	vpci := vpc.Mul(vpr).Mul(vm)
 
 	m.BBSum.Add(vpci)
 	if fillOnly {
 		return false
 	}
 
-	dev, err := stats.StandardDeviation(stats.Float64Data(m.BBSum.Values()))
+	dev, err := stats.StandardDeviation(stats.Float64Data(m.BBSum.FloatValues()))
 	if err != nil {
 		log.Panicf("stdev shouldnt error: %s (len: %d)", err, len(m.BBSum.Values()))
 	}
@@ -123,7 +124,7 @@ func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 	dev *= m.Multiplier
 
 	// hit detection
-	hit := vpci > (basis + dev)
+	hit := vpci.GreaterThan(basis.Add(decimal.NewFromFloat(dev)))
 
 	if hit {
 		m.ConsecutiveHits += 1
@@ -133,8 +134,8 @@ func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 	}
 
 	bv, _ := c.BaseVolume.Float64()
-	log.Printf("SPAM %15s - vpc: %8f, vpr: %8f, vm: %8f, vpci: %8f, basis: %8f, dev: %8f\n\t\t"+
-		"candle: %s, price: %8f, btc_vol: %8f, MA_P: %8f / %8f, MA_V: %8f / %8f, MA_PV: %8f / %8f",
+	log.Printf("SPAM %15s - vpc: %s, vpr: %s, vm: %s, vpci: %s, basis: %s, dev: %f\n\t\t"+
+		"candle: %s, price: %s, btc_vol: %s, MA_P: %s / %s, MA_V: %s / %s, MA_PV: %s / %s",
 		m.MarketName, vpc, vpr, vm, vpci, basis, dev,
 		util.ParisTime(c.TimeStamp.Time), p, bv,
 		m.ShortMAs.P.Avg(), m.LongMAs.P.Avg(),

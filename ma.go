@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/shopspring/decimal"
+)
+
 // https://github.com/RobinUS2/golang-moving-average
 // taken from cause lazy
 // @author Robin Verlangen
@@ -7,13 +11,13 @@ package main
 
 type MovingAverage struct {
 	Window      int
-	values      []float64
+	values      []decimal.Decimal
 	valPos      int
 	slotsFilled bool
 }
 
-func (ma *MovingAverage) Avg() float64 {
-	var sum = float64(0)
+func (ma *MovingAverage) Avg() decimal.Decimal {
+	var sum = decimal.NewFromFloat(0.0)
 	var c = ma.Window - 1
 
 	// Are all slots filled? If not, ignore unused
@@ -21,23 +25,21 @@ func (ma *MovingAverage) Avg() float64 {
 		c = ma.valPos - 1
 		if c < 0 {
 			// Empty register
-			return 0
+			return decimal.New(0, 0)
 		}
 	}
 
 	// Sum values
 	var ic = 0
 	for i := 0; i <= c; i++ {
-		sum += ma.values[i]
+		sum = sum.Add(ma.values[i])
 		ic++
 	}
 
-	// Finalize average and return
-	avg := sum / float64(ic)
-	return avg
+	return sum.Div(decimal.NewFromFloat(float64(ic)))
 }
 
-func (ma *MovingAverage) Add(val float64) {
+func (ma *MovingAverage) Add(val decimal.Decimal) {
 	// Put into values array
 	ma.values[ma.valPos] = val
 
@@ -50,17 +52,28 @@ func (ma *MovingAverage) Add(val float64) {
 	}
 }
 
-func (ma MovingAverage) Values() []float64 {
+func (ma MovingAverage) Values() []decimal.Decimal {
 	if ma.slotsFilled {
 		return ma.values
 	}
+
 	return ma.values[:ma.valPos]
+}
+
+func (ma MovingAverage) FloatValues() []float64 {
+	values := ma.Values()
+	fvalues := make([]float64, len(values))
+	for i := range values {
+		f, _ := values[i].Float64()
+		fvalues[i] = f
+	}
+	return fvalues
 }
 
 func NewMovingAverage(window int) *MovingAverage {
 	return &MovingAverage{
 		Window:      window,
-		values:      make([]float64, window),
+		values:      make([]decimal.Decimal, window),
 		valPos:      0,
 		slotsFilled: false,
 	}
@@ -82,8 +95,8 @@ func NewMATrio(length int) *MATrio {
 	}
 }
 
-func (t *MATrio) Add(p float64, v float64) {
+func (t *MATrio) Add(p decimal.Decimal, v decimal.Decimal) {
 	t.P.Add(p)
 	t.V.Add(v)
-	t.PV.Add(p * v)
+	t.PV.Add(p.Mul(v))
 }
