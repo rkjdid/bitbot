@@ -7,7 +7,7 @@ package main
 
 type MovingAverage struct {
 	Window      int
-	Values      []float64
+	values      []float64
 	valPos      int
 	slotsFilled bool
 }
@@ -28,7 +28,7 @@ func (ma *MovingAverage) Avg() float64 {
 	// Sum values
 	var ic = 0
 	for i := 0; i <= c; i++ {
-		sum += ma.Values[i]
+		sum += ma.values[i]
 		ic++
 	}
 
@@ -39,7 +39,7 @@ func (ma *MovingAverage) Avg() float64 {
 
 func (ma *MovingAverage) Add(val float64) {
 	// Put into values array
-	ma.Values[ma.valPos] = val
+	ma.values[ma.valPos] = val
 
 	// Increment value position
 	ma.valPos = (ma.valPos + 1) % ma.Window
@@ -50,10 +50,17 @@ func (ma *MovingAverage) Add(val float64) {
 	}
 }
 
+func (ma MovingAverage) Values() []float64 {
+	if ma.slotsFilled {
+		return ma.values
+	}
+	return ma.values[:ma.valPos]
+}
+
 func NewMovingAverage(window int) *MovingAverage {
 	return &MovingAverage{
 		Window:      window,
-		Values:      make([]float64, window),
+		values:      make([]float64, window),
 		valPos:      0,
 		slotsFilled: false,
 	}

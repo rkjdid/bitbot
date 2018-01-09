@@ -95,7 +95,7 @@ func (m *Market) FillCandles() error {
 	return nil
 }
 
-// AddCandle inserts c as the last candle, recomputing values
+// AddCandle inserts c as the last candle, recomputing Values()
 // and returning true if added candle was a hit.
 func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 	m.LastCandle = c
@@ -114,9 +114,9 @@ func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 		return false
 	}
 
-	dev, err := stats.StandardDeviation(stats.Float64Data(m.BBSum.Values))
+	dev, err := stats.StandardDeviation(stats.Float64Data(m.BBSum.Values()))
 	if err != nil {
-		log.Panicf("stdev shouldnt error: %s (len: %d)", err, len(m.BBSum.Values))
+		log.Panicf("stdev shouldnt error: %s (len: %d)", err, len(m.BBSum.Values()))
 	}
 
 	basis := m.BBSum.Avg()
