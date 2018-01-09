@@ -133,13 +133,20 @@ func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 		m.ConsecutiveHits = 0
 	}
 
-	log.Printf("%12s - %s - price %s - volume: %s - MA_P: %s / %s, MA_V: %s / %s, MA_PV: %s / %s\n\t"+
-		"vpc: %s, vpr: %s, vm: %s, vpci: %s, basis: %s, dev: %f",
-		m.MarketName, util.ParisTime(c.TimeStamp.Time), p, v,
-		m.ShortMAs.P.Avg(), m.LongMAs.P.Avg(),
-		m.ShortMAs.V.Avg(), m.LongMAs.V.Avg(),
-		m.ShortMAs.PV.Avg(), m.LongMAs.PV.Avg(),
-		vpc, vpr, vm, vpci, basis, dev)
+	if *verbose {
+		log.Printf("%12s - %s - price %s - volume: %s - MA_P: %s / %s, MA_V: %s / %s, MA_PV: %s / %s\n\t"+
+			"vpc: %s, vpr: %s, vm: %s, vpci: %s, basis: %s, dev: %f",
+			m.MarketName, util.ParisTime(c.TimeStamp.Time), p, v,
+			m.ShortMAs.P.Avg(), m.LongMAs.P.Avg(),
+			m.ShortMAs.V.Avg(), m.LongMAs.V.Avg(),
+			m.ShortMAs.PV.Avg(), m.LongMAs.PV.Avg(),
+			vpc, vpr, vm, vpci, basis, dev)
+	}
+
+	if hit {
+		log.Printf("HIT %12s - %s - consecutive: %d, total: %3d, price: %s",
+			m.MarketName, util.ParisTime(c.TimeStamp.Time), m.ConsecutiveHits, m.TotalHits, p)
+	}
 
 	return hit
 }
@@ -167,10 +174,8 @@ func (m *Market) StartPolling() {
 			goto sleep
 		}
 
-		if m.AddCandle(c, false) {
-			log.Printf("%18s HIT - consecutive: %d, total: %3d",
-				m.MarketName, m.ConsecutiveHits, m.TotalHits)
-		}
+		_ = m.AddCandle(c, false)
+
 		// we have new value, long poll
 		timer.Reset(longPoll)
 

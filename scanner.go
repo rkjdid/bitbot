@@ -136,10 +136,7 @@ func (s *Scanner) Analyze(marketName string, from, to time.Time) error {
 			break
 		}
 
-		if m.AddCandle(c, false) {
-			log.Printf("%18s HIT - consecutive: %d, total: %3d",
-				m.MarketName, m.ConsecutiveHits, m.TotalHits)
-		}
+		_ = m.AddCandle(c, false)
 	}
 
 	return nil
