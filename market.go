@@ -29,7 +29,7 @@ type Market struct {
 	stop chan interface{}
 }
 
-func NewMarket(market bittrex.Market, longLength, shortLength, bbLength int,
+func NewMarket(market bittrex.Market, shortLength, longLength, bbLength int,
 	interval CandleInterval, multiplier float64, client *bittrex.Bittrex) *Market {
 
 	return &Market{
