@@ -83,8 +83,10 @@ func init() {
 
 	// log to both Stderr & logFile
 	logger = io.MultiWriter(logFile, os.Stderr)
-	log.SetFlags(0)
 	log.SetOutput(logger)
+	if len(*analyze) > 0 {
+		log.SetFlags(0)
+	}
 
 	// load config
 	if *cfgPath == "" {
