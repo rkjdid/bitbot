@@ -83,6 +83,7 @@ func init() {
 
 	// log to both Stderr & logFile
 	logger = io.MultiWriter(logFile, os.Stderr)
+	log.SetFlags(0)
 	log.SetOutput(logger)
 
 	// load config
