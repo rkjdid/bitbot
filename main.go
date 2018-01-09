@@ -15,6 +15,7 @@ import (
 const Version = "v0"
 
 var (
+	err    error
 	cfg    *Config
 	logger io.Writer
 )
@@ -24,6 +25,8 @@ var (
 	rootPath = flag.String("root", "", "path to goregen's main directory (defaults to executable path)")
 	logDir   = flag.String("log", "", "path to logs directory (defaults to <root>/log)")
 	analyze  = flag.String("analyze", "", "full analyze of provided market & exit")
+	from     = flag.String("from", "", "from date (analyze mode only) - format: 2/1/2006 15:04:05")
+	to       = flag.String("to", "", "to date (analyze mode only) - format: 2/1/2006 15:04:05")
 	verbose  = flag.Bool("v", false, "increase verbosity")
 	version  = flag.Bool("version", false, "print version & exit")
 )
@@ -109,7 +112,21 @@ func init() {
 func main() {
 	s := NewScanner(cfg.Scanner)
 	if len(*analyze) > 0 {
-		err := s.Analyze(*analyze)
+		var tFrom, tTo time.Time
+		if len(*from) > 0 {
+			tFrom, err = time.Parse("2/1/2006 15:04:05", *from)
+			if err != nil {
+				log.Fatalf("couldn't parse -from date: %s", err)
+			}
+		}
+		if len(*to) > 0 {
+			tTo, err = time.Parse("2/1/2006 15:04:05", *to)
+			if err != nil {
+				log.Fatalf("couldn't parse -to date: %s", err)
+			}
+		}
+
+		err := s.Analyze(*analyze, tFrom, tTo)
 		if err != nil {
 			log.Fatalf("AnalyzeMarket(%s): %s", *analyze, err)
 		}

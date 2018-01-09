@@ -4,6 +4,7 @@ import (
 	"github.com/toorop/go-bittrex"
 	"log"
 	"strings"
+	"time"
 )
 
 type Scanner struct {
@@ -108,7 +109,18 @@ func (s *Scanner) Scan() {
 	}
 }
 
-func (s *Scanner) Analyze(marketName string) error {
+func (s *Scanner) Analyze(marketName string, from, to time.Time) error {
+	log.Printf("starting market analysis for \"%s\"", marketName)
+	var bFrom, bTo bool
+	if !from.Equal(time.Time{}) {
+		bFrom = true
+		log.Printf("from: %s", from)
+	}
+	if !to.Equal(time.Time{}) {
+		bTo = true
+		log.Printf("  to: %s", to)
+	}
+
 	m := s.NewMarket(bittrex.Market{MarketName: marketName})
 	candles, err := s.Client.GetTicks(marketName, string(s.Config.Interval))
 	if err != nil {
@@ -116,6 +128,14 @@ func (s *Scanner) Analyze(marketName string) error {
 	}
 
 	for _, c := range candles {
+		// candles should come in historical order..
+		if bFrom && c.TimeStamp.Time.Before(from) {
+			continue
+		}
+		if bTo && c.TimeStamp.Time.After(to) {
+			break
+		}
+
 		if m.AddCandle(c, false) {
 			log.Printf("%18s HIT - consecutive: %d, total: %3d",
 				m.MarketName, m.ConsecutiveHits, m.TotalHits)
