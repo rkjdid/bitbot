@@ -133,15 +133,13 @@ func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 		m.ConsecutiveHits = 0
 	}
 
-	bv, _ := c.BaseVolume.Float64()
-	log.Printf("SPAM %15s - vpc: %s, vpr: %s, vm: %s, vpci: %s, basis: %s, dev: %f\n\t\t"+
-		"candle: %s, price: %s, btc_vol: %s, MA_P: %s / %s, MA_V: %s / %s, MA_PV: %s / %s",
-		m.MarketName, vpc, vpr, vm, vpci, basis, dev,
-		util.ParisTime(c.TimeStamp.Time), p, bv,
+	log.Printf("%12s - %s - price %s - volume: %s - MA_P: %s / %s, MA_V: %s / %s, MA_PV: %s / %s\n\t"+
+		"vpc: %s, vpr: %s, vm: %s, vpci: %s, basis: %s, dev: %f",
+		m.MarketName, util.ParisTime(c.TimeStamp.Time), p, v,
 		m.ShortMAs.P.Avg(), m.LongMAs.P.Avg(),
 		m.ShortMAs.V.Avg(), m.LongMAs.V.Avg(),
 		m.ShortMAs.PV.Avg(), m.LongMAs.PV.Avg(),
-	)
+		vpc, vpr, vm, vpci, basis, dev)
 
 	return hit
 }
