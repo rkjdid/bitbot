@@ -17,7 +17,7 @@ type Scanner struct {
 func NewScanner(cfg *ScannerConfig) *Scanner {
 	return &Scanner{
 		Config:  cfg,
-		Client:  bittrex.New("", ""),
+		Client:  bittrex.New(cfg.BittrexApiKey, cfg.BittrexApiSecret),
 		Markets: make(map[string]*Market),
 	}
 }

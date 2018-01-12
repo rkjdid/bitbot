@@ -48,6 +48,9 @@ type ScannerConfig struct {
 
 	// number of consecutive hits to trigger notification
 	NotificationThreshold int
+
+	BittrexApiKey    string
+	BittrexApiSecret string
 }
 
 var DefaultConfig = Config{
