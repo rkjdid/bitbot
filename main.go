@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const Version = "v0.1.0"
-
 var (
 	err    error
 	cfg    *Config
