@@ -20,7 +20,7 @@ type SMTPDialer struct {
 }
 
 func (dialer *SMTPDialer) Init() {
-	dialer.Dialer = gomail.NewDialer(
+	dialer.Dialer = gomail.NewPlainDialer(
 		dialer.Config.Host, dialer.Config.Port, dialer.Config.User, dialer.Config.Pass)
 }
 
@@ -38,7 +38,7 @@ func (dialer SMTPDialer) String() string {
 
 func (dialer SMTPDialer) SendMail(dst []string, header string, body string) (err error) {
 	msg := gomail.NewMessage()
-	msg.SetAddressHeader("From", dialer.Username, dialer.String())
+	msg.SetAddressHeader("From", dialer.Config.Name, dialer.String())
 	msg.SetHeader("Subject", header)
 	msg.SetBody("text/html; charset=utf-8", body)
 
