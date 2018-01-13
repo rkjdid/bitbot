@@ -14,7 +14,7 @@ install:
   - dep ensure
 
 script:
-  - go fmt
+  - diff -u <(echo -n) <(gofmt -d .)
   - go test -v ./...
 
 before_deply: ./build_all.sh
