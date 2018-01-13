@@ -1,6 +1,5 @@
 #!/bin/bash
 
-version=$(cat version.go |grep Version |sed 's,.\+ "\([[:alnum:].]\+\)",\1,')
 dst="bin"
 
 mkdir -p $dst
@@ -20,7 +19,7 @@ for os in "linux" "darwin" "windows"; do
       ;;
     esac
 
-    bin=$dst/bitbot_${version}_$os$post
+    bin=$dst/bitbot_$os$post
     [ "$os" = "windows" ] && bin=$bin.exe
 
 

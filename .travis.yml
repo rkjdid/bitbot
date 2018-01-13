@@ -22,6 +22,13 @@ deploy:
   provider: releases
   api_key:
     secure: FwqG7gTG/k/vc4QS8oraDCgOITCRpwSPh/J8trcK/aWmyJY8tkCC/am6+ygd8+SuYRzwLZH8pG4fwZMcWR4IctgKtYbAQ7at2GNgAGnip9MMhmTqOIsCPQSMU6ucFH0S8c3y2wqYD3X5kZV5iUQyly6d1T9+lgVnMSsBuXSG9jLtYTuQCD9PSfkyr/MR6uPW2LX5ir73ckaJWneu/01wX0d+5Rpk9spmVVEEwXcu/AMR5g/3oZT1PiUnaCavfSf17l7IG9e9+3CMiwH/jVW3CTMrTp4jUxzBTYpp+uRkyfI5aaKBlQncPBGdyYC613ch6mfxA6RwwAMnXJ51YR9WTK4pnh6kSCq095ToDhkZu9ncwQGxnofT0/ChoY5kq2ZEK3aeEMqCJNiF4GoldsTmTxh4fMfv60dzkv5zpzj0AjdlJ8g1FrFYNFm9exPmO1eqzkE2H/ieEaNrqCuTHXmcPapvpaMk1nyMgFI8p3YUcKei6rUQklYw7Fj/kEtv3n+aVhFfRJhJ8zhdcySx+XG/pLXV+kcfSSmCfj5/vk2eugUXhj0Rhip+MHhDSZemjF7VpaTRgFT8jU2ZrvIFL0lgslocr1uoNGjE3gQMlyXZ/GWfLWO1+UQxwN4Gkv+l7TGTLNeO3t9TW6j/S6fCnj7UxYE5xIvsJec0NyzPY1yvqgA=
-  file: bin/*
+  file:
+    - bin/bitbot_linux
+    - bin/bitbot_linux-x86
+    - bin/bitbot_linux-arm
+    - bin/bitbot_darwin
+    - bin/bitbot_darwin-x86
+    - bin/bitbot_windows.exe
+    - bin/bitbot_windows-x86.exe
   on:
     repo: rkjdid/bitbot
