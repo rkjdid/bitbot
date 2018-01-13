@@ -32,3 +32,4 @@ deploy:
     - bin/bitbot_windows-x86.exe
   on:
     repo: rkjdid/bitbot
+    tags: true
