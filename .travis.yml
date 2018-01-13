@@ -16,7 +16,8 @@ install:
 script:
   - go fmt
   - go test -v ./...
-  - ./build_all.sh
+
+before_deply: ./build_all.sh
 
 deploy:
   provider: releases
