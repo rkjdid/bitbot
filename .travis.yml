@@ -27,4 +27,3 @@ deploy:
     - $PWD/bin/bitbot_linux
   on:
     repo: rkjdid/bitbot
-    tags: true
