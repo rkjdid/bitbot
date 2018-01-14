@@ -6,70 +6,56 @@ import (
 	"time"
 )
 
-var market_ETHBTC = &Market{
-	Market: bittrex.Market{
-		MarketCurrency: "ETH",
-		BaseCurrency:   "BTC",
-		MarketName:     "BTC-ETH",
-		IsActive:       true,
+var c = bittrex.Candle{
+	TimeStamp: bittrex.CandleTime{
+		Time: time.Now(),
 	},
-
-	Interval: CandleHour,
-	Client:   bittrex.New("", ""),
 }
 
-func TestCandlesEqual(t *testing.T) {
-	c0, err := market_ETHBTC.GetLatestTick()
-	if err != nil {
-		t.Fatalf("GetLatestTick: %s", err)
+var m = Market{
+	Market:     bittrex.Market{},
+	LastCandle: c,
+}
+
+func TestCandlesTimeDiff(t *testing.T) {
+	c0 := c
+
+	if CandleTimeDiff(c0, c0) != 0 {
+		t.Error("c0 should equal c0")
 	}
 
-	if !CandlesEqual(c0, c0) {
-		t.Error("c0 should equal c1")
+	c1 := c
+	c1.TimeStamp.Time = c1.TimeStamp.Add(time.Second)
+	if CandleTimeDiff(c0, c1) >= 0 {
+		t.Error("c0 should be before c1")
 	}
-
-	c1 := c0
-	c1.Open = c1.Open.Ceil()
-	if CandlesEqual(c0, c1) {
-		t.Error("c0 should not equal c1")
+	if CandleTimeDiff(c1, c0) <= 0 {
+		t.Error("c1 should be after c0")
 	}
-
-	c1.Open = c0.Open
-	if !CandlesEqual(c0, c1) {
-		t.Error("c0 should equal c1")
-	}
-
-	c1.TimeStamp = bittrex.CandleTime{
-		Time: c1.TimeStamp.Time.Add(time.Second),
-	}
-	if CandlesEqual(c0, c1) {
-		t.Error("c0 should not equal c1")
+	if CandleTimeDiff(c1, c0) != time.Second {
+		t.Error("c1 - c0 should equal 1sec")
 	}
 }
 
 func TestMarket_IsCandleNew(t *testing.T) {
-	c0, err := market_ETHBTC.GetLatestTick()
-	if err != nil {
-		t.Fatalf("GetLatestTick: %s", err)
+	c0 := c
+	m0 := m
+	m0.LastCandle = c0
+
+	if m0.IsCandleNew(c0) {
+		t.Error("c0 time should equal m0.LastCandle")
 	}
 
-	market_ETHBTC.LastCandle = c0
+	// 1 sec after c0
+	c1 := c0
+	c1.TimeStamp.Time = c1.TimeStamp.Time.Add(time.Second)
 
-	c1, err := market_ETHBTC.GetLatestTick()
-	if err != nil {
-		t.Fatalf("GetLatestTick: %s", err)
+	if !m0.IsCandleNew(c1) {
+		t.Error("c1 time should be newer of 1 sec")
 	}
 
-	if market_ETHBTC.IsCandleNew(c1) {
-		// bad hourly timing?
-		market_ETHBTC.LastCandle = c1
-		c1, err = market_ETHBTC.GetLatestTick()
-		if err != nil {
-			t.Fatalf("GetLatestTick: %s", err)
-		}
-	}
-
-	if market_ETHBTC.IsCandleNew(c1) {
-		t.Error("Candle shouldn't be new")
+	m0.LastCandle = c1
+	if m0.IsCandleNew(c0) {
+		t.Error("c0 shouldn't be new now")
 	}
 }

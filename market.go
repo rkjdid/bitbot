@@ -59,12 +59,16 @@ func max(ints ...int) int {
 	return maxValue
 }
 
-func CandlesEqual(c0, c1 bittrex.Candle) bool {
-	return c0.TimeStamp.Time.Equal(c1.TimeStamp.Time) && c0.Open.Equal(c1.Open)
+// CandleTimeDiff performs a time comparison between c0 and c1 by calling time.Sub on both timestamps.
+// If returned duration is negative, c0 is before c1
+//                      is positive, c0 is after c1
+//                      equals 0, c0 and c1 represent the same time.
+func CandleTimeDiff(c0, c1 bittrex.Candle) time.Duration {
+	return c0.TimeStamp.Time.Sub(c1.TimeStamp.Time)
 }
 
 func (m *Market) IsCandleNew(candle bittrex.Candle) bool {
-	return !CandlesEqual(m.LastCandle, candle)
+	return CandleTimeDiff(candle, m.LastCandle) > 0
 }
 
 func (m *Market) GetLatestTick() (cdl bittrex.Candle, err error) {
