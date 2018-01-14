@@ -157,8 +157,11 @@ func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
 
 func (m *Market) StartPolling() {
 	var (
-		shortPoll = time.Duration(Candles[m.Interval]) / 6
-		longPoll  = time.Duration(Candles[m.Interval]) * 4 / 5
+		// poll for a bit less than duration, so we can try and catch up delay
+		// without polling to much unnecessarily
+		longPoll = time.Duration(Candles[m.Interval]) * (4 / 5)
+		// become somewhat aggressive towards the end of the interval
+		shortPoll = time.Duration(Candles[m.Interval]) / 30
 		name      = m.MarketName
 		timer     = time.NewTimer(shortPoll)
 		c         bittrex.Candle
