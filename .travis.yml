@@ -17,7 +17,7 @@ script:
   - diff -u <(echo -n) <(gofmt -d .)
   - go test -v ./...
 
-before_deply: ./build_all.sh
+before_deploy: ./build_all.sh
 
 deploy:
   provider: releases
