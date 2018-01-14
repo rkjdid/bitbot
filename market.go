@@ -177,11 +177,17 @@ func (m *Market) StartPolling() {
 		}
 		c = candles[0]
 		if !m.IsCandleNew(c) {
+			m.LastCandle = c
 			timer.Reset(shortPoll)
 			goto sleep
 		}
 
-		_ = m.AddCandle(c, false)
+		// We have a new candle, we insert previous m.LastCandle for computation,
+		// which is recent enough hopefully.
+		_ = m.AddCandle(m.LastCandle, false)
+
+		// store new candle
+		m.LastCandle = c
 
 		// we have new value, long poll
 		timer.Reset(longPoll)
