@@ -90,11 +90,11 @@ func (m *Market) FillCandles() error {
 	sz := max(m.LongMAs.Length, m.ShortMAs.Length, m.BBSum.Window)
 	m.Candles = make([]bittrex.Candle, sz)
 
-	if sz > (len(candles) - 1) {
-		sz = len(candles) - 1
+	if sz > len(candles) {
+		sz = len(candles)
 	}
 
-	for i := len(candles) - sz - 1; i < len(candles)-1; i++ {
+	for i := len(candles) - sz; i < len(candles); i++ {
 		m.AddCandle(candles[i], true)
 	}
 	return nil
