@@ -102,9 +102,6 @@ func init() {
 		}
 		log.Printf("created new config file \"%s\"", *cfgPath)
 	}
-	if !cfg.IsValid() {
-		log.Fatalf("\"%s\" appears malformed, please fix it or delete it", *cfgPath)
-	}
 
 	log.Printf("config file: %s", *cfgPath)
 	util.WriteToml(cfg, logger)

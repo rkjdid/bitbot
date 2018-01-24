@@ -65,9 +65,3 @@ var DefaultConfig = Config{
 		NotificationThreshold: 0,
 	},
 }
-
-// IsValid checks that we're working with a meaningful config, preventing from
-// using malformed config & potentially panic-ing around.
-func (cfg Config) IsValid() bool {
-	return cfg.Scanner.BBLength > 0 && cfg.Scanner.LongTerm > cfg.Scanner.ShortTerm && cfg.Scanner.ShortTerm > 0
-}
