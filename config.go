@@ -24,12 +24,12 @@ var Candles = map[CandleInterval]util.Duration{
 }
 
 type Config struct {
-	Scanner ScannerConfig
-	Market  MarketConfig
-	VPCI    VPCIConfig
+	Controller ControllerConfig
+	Market     MarketConfig
+	VPCI       VPCIConfig
 }
 
-type ScannerConfig struct {
+type ControllerConfig struct {
 	// only pick those markets, if nil or empty all BTC markets are monitored
 	Pairs []string
 
@@ -65,7 +65,7 @@ type VPCIConfig struct {
 }
 
 var DefaultScannerConfig = Config{
-	ScannerConfig{
+	ControllerConfig{
 		Pairs:                 []string{},
 		MinBtcVolumeDaily:     200.0,
 		NotificationThreshold: 0,

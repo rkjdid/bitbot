@@ -108,7 +108,7 @@ func init() {
 }
 
 func main() {
-	s := NewScanner(cfg.Scanner)
+	ctrl := NewController(cfg.Controller)
 	if len(*analyze) > 0 {
 		var tFrom, tTo time.Time
 		if len(*from) > 0 {
@@ -124,7 +124,7 @@ func main() {
 			}
 		}
 
-		err := s.Analyze(*analyze, cfg.Market, tFrom, tTo)
+		err := ctrl.Analyze(*analyze, cfg.Market, tFrom, tTo)
 		if err != nil {
 			log.Fatalf("AnalyzeMarket(%s): %s", *analyze, err)
 		}
@@ -132,8 +132,8 @@ func main() {
 	}
 
 	log.Println("Press <Ctrl-C> to quit")
-	s.InitMarkets(cfg.Market)
-	go s.Start()
+	ctrl.InitMarkets(cfg.Market)
+	go ctrl.Start()
 
 	trap := make(chan os.Signal)
 	signal.Notify(trap, os.Kill, os.Interrupt)
@@ -143,7 +143,7 @@ func main() {
 
 	cleanExit := make(chan struct{})
 	go func() {
-		s.Stop()
+		ctrl.Stop()
 		close(cleanExit)
 	}()
 

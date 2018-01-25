@@ -7,27 +7,27 @@ import (
 	"time"
 )
 
-type Scanner struct {
-	Config  *ScannerConfig
+type Controller struct {
+	Config  *ControllerConfig
 	Markets map[string]*Market
 	Client  *bittrex.Bittrex
 	stop    chan interface{}
 }
 
-func NewScanner(cfg ScannerConfig) *Scanner {
-	return &Scanner{
+func NewController(cfg ControllerConfig) *Controller {
+	return &Controller{
 		Config:  &cfg,
 		Client:  bittrex.New(cfg.BittrexApiKey, cfg.BittrexApiSecret),
 		Markets: make(map[string]*Market),
 	}
 }
 
-func (s *Scanner) NewMarket(market bittrex.Market, cfg MarketConfig) *Market {
-	return NewMarket(market, cfg, s.Client)
+func (ctrl *Controller) NewMarket(market bittrex.Market, cfg MarketConfig) *Market {
+	return NewMarket(market, cfg, ctrl.Client)
 }
 
-func (s *Scanner) InitMarkets(mcfg MarketConfig) error {
-	markets, err := s.Client.GetMarkets()
+func (ctrl *Controller) InitMarkets(mcfg MarketConfig) error {
+	markets, err := ctrl.Client.GetMarkets()
 	if err != nil {
 		return err
 	}
@@ -39,10 +39,10 @@ func (s *Scanner) InitMarkets(mcfg MarketConfig) error {
 			continue
 		}
 
-		if s.Config.Pairs != nil && len(s.Config.Pairs) > 0 {
+		if ctrl.Config.Pairs != nil && len(ctrl.Config.Pairs) > 0 {
 			// only track this market if it is in Config.Pairs filter
 			trackMarket := false
-			for _, pair := range s.Config.Pairs {
+			for _, pair := range ctrl.Config.Pairs {
 				if pair == market.MarketName {
 					trackMarket = true
 					break
@@ -57,58 +57,58 @@ func (s *Scanner) InitMarkets(mcfg MarketConfig) error {
 				continue
 			}
 
-			summary, err := s.Client.GetMarketSummary(name)
+			summary, err := ctrl.Client.GetMarketSummary(name)
 			if err != nil {
 				log.Printf("error retreiving market history for %s: %s", name, err)
 				continue
 			}
 
 			bv, _ := summary[0].BaseVolume.Float64()
-			if bv < s.Config.MinBtcVolumeDaily {
+			if bv < ctrl.Config.MinBtcVolumeDaily {
 				// filter out low volume markets
 				log.Printf("filtering out low volume market %s (base vol: %5f)", name, bv)
 				continue
 			}
 		}
 
-		m := s.NewMarket(market, mcfg)
+		m := ctrl.NewMarket(market, mcfg)
 		err = m.PrefillCandles()
 		if err != nil {
 			log.Printf("error filling candles for %s: %s", market.MarketName, err)
 			continue
 		}
-		s.Markets[name] = m
+		ctrl.Markets[name] = m
 		log.Println("tracking market", name)
 	}
 	return nil
 }
 
-func (s *Scanner) Stop() {
-	if s.stop == nil {
+func (ctrl *Controller) Stop() {
+	if ctrl.stop == nil {
 		return
 	}
-	s.stop <- nil
-	s.stop = nil
+	ctrl.stop <- nil
+	ctrl.stop = nil
 }
 
-func (s *Scanner) Start() {
-	s.InitMarkets(cfg.Market)
-	log.Printf("%d tracked markets", len(s.Markets))
-	for _, market := range s.Markets {
+func (ctrl *Controller) Start() {
+	ctrl.InitMarkets(cfg.Market)
+	log.Printf("%d tracked markets", len(ctrl.Markets))
+	for _, market := range ctrl.Markets {
 		go market.StartPolling()
 	}
 
-	s.stop = make(chan interface{})
+	ctrl.stop = make(chan interface{})
 	select {
-	case <-s.stop:
-		for _, market := range s.Markets {
+	case <-ctrl.stop:
+		for _, market := range ctrl.Markets {
 			market.Stop()
 		}
 		return
 	}
 }
 
-func (s *Scanner) Analyze(marketName string, cfg MarketConfig, from, to time.Time) error {
+func (ctrl *Controller) Analyze(marketName string, cfg MarketConfig, from, to time.Time) error {
 	log.Printf("starting market analysis for \"%s\"", marketName)
 	var bFrom, bTo bool
 	if !from.Equal(time.Time{}) {
@@ -120,8 +120,8 @@ func (s *Scanner) Analyze(marketName string, cfg MarketConfig, from, to time.Tim
 		log.Printf("  to: %s", to)
 	}
 
-	m := s.NewMarket(bittrex.Market{MarketName: marketName}, cfg)
-	candles, err := s.Client.GetTicks(marketName, string(cfg.Interval))
+	m := ctrl.NewMarket(bittrex.Market{MarketName: marketName}, cfg)
+	candles, err := ctrl.Client.GetTicks(marketName, string(cfg.Interval))
 	if err != nil {
 		return err
 	}
