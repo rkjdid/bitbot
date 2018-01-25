@@ -132,8 +132,14 @@ func main() {
 	}
 
 	log.Println("Press <Ctrl-C> to quit")
-	ctrl.InitMarkets(cfg.Market, cfg.VPCI)
-	go ctrl.Start(cfg.VPCI)
+	err = ctrl.InitMarkets(cfg.Market, cfg.VPCI)
+	if err != nil {
+		log.Fatalf("error initializing markets: %s", err)
+	}
+	err = ctrl.Start(cfg.VPCI)
+	if err != nil {
+		log.Fatalf("error starting controller: %s", err)
+	}
 
 	trap := make(chan os.Signal)
 	signal.Notify(trap, os.Kill, os.Interrupt)

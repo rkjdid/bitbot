@@ -98,21 +98,28 @@ func (ctrl *Controller) Stop() {
 	ctrl.stop = nil
 }
 
-func (ctrl *Controller) Start(vpci VPCIConfig) {
-	ctrl.InitMarkets(cfg.Market, vpci)
+func (ctrl *Controller) run() {
+	ctrl.stop = make(chan interface{})
+	for {
+		select {
+		case sig := <-ctrl.signals:
+			log.Println(sig)
+		case <-ctrl.stop:
+			for _, market := range ctrl.Markets {
+				market.Stop()
+			}
+			return
+		}
+	}
+}
+
+func (ctrl *Controller) Start(vpci VPCIConfig) error {
 	log.Printf("%d tracked markets", len(ctrl.Markets))
+	go ctrl.run()
 	for _, market := range ctrl.Markets {
 		go market.StartPolling()
 	}
-
-	ctrl.stop = make(chan interface{})
-	select {
-	case <-ctrl.stop:
-		for _, market := range ctrl.Markets {
-			market.Stop()
-		}
-		return
-	}
+	return nil
 }
 
 func (ctrl *Controller) Analyze(marketName string, cfg MarketConfig, from, to time.Time) error {
