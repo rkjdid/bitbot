@@ -95,7 +95,7 @@ func init() {
 		if !os.IsNotExist(err) {
 			log.Fatalf("error reading config \"%s\": %s", *cfgPath, err)
 		}
-		cfg = &DefaultScannerConfig
+		cfg = &DefaultConfig
 		err = util.WriteTomlFile(cfg, *cfgPath)
 		if err != nil {
 			log.Fatalf("error creating config file \"%s\": %s", *cfgPath, err)

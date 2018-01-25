@@ -64,7 +64,7 @@ type VPCIConfig struct {
 	Enabled bool
 }
 
-var DefaultScannerConfig = Config{
+var DefaultConfig = Config{
 	ControllerConfig{
 		Pairs:                 []string{},
 		MinBtcVolumeDaily:     200.0,
