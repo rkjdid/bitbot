@@ -14,20 +14,19 @@ type Scanner struct {
 	stop    chan interface{}
 }
 
-func NewScanner(cfg *ScannerConfig) *Scanner {
+func NewScanner(cfg ScannerConfig) *Scanner {
 	return &Scanner{
-		Config:  cfg,
+		Config:  &cfg,
 		Client:  bittrex.New(cfg.BittrexApiKey, cfg.BittrexApiSecret),
 		Markets: make(map[string]*Market),
 	}
 }
 
-func (s *Scanner) NewMarket(market bittrex.Market) *Market {
-	return NewMarket(market, s.Config.ShortTerm, s.Config.LongTerm,
-		s.Config.BBLength, s.Config.Interval, s.Config.Multiplier, s.Client)
+func (s *Scanner) NewMarket(market bittrex.Market, cfg MarketConfig) *Market {
+	return NewMarket(market, cfg, s.Client)
 }
 
-func (s *Scanner) fetchMarkets() error {
+func (s *Scanner) InitMarkets(mcfg MarketConfig) error {
 	markets, err := s.Client.GetMarkets()
 	if err != nil {
 		return err
@@ -72,8 +71,8 @@ func (s *Scanner) fetchMarkets() error {
 			}
 		}
 
-		m := s.NewMarket(market)
-		err = m.FillCandles()
+		m := s.NewMarket(market, mcfg)
+		err = m.PrefillCandles()
 		if err != nil {
 			log.Printf("error filling candles for %s: %s", market.MarketName, err)
 			continue
@@ -92,8 +91,8 @@ func (s *Scanner) Stop() {
 	s.stop = nil
 }
 
-func (s *Scanner) Scan() {
-	s.fetchMarkets()
+func (s *Scanner) Start() {
+	s.InitMarkets(cfg.Market)
 	log.Printf("%d tracked markets", len(s.Markets))
 	for _, market := range s.Markets {
 		go market.StartPolling()
@@ -109,7 +108,7 @@ func (s *Scanner) Scan() {
 	}
 }
 
-func (s *Scanner) Analyze(marketName string, from, to time.Time) error {
+func (s *Scanner) Analyze(marketName string, cfg MarketConfig, from, to time.Time) error {
 	log.Printf("starting market analysis for \"%s\"", marketName)
 	var bFrom, bTo bool
 	if !from.Equal(time.Time{}) {
@@ -121,8 +120,8 @@ func (s *Scanner) Analyze(marketName string, from, to time.Time) error {
 		log.Printf("  to: %s", to)
 	}
 
-	m := s.NewMarket(bittrex.Market{MarketName: marketName})
-	candles, err := s.Client.GetTicks(marketName, string(s.Config.Interval))
+	m := s.NewMarket(bittrex.Market{MarketName: marketName}, cfg)
+	candles, err := s.Client.GetTicks(marketName, string(cfg.Interval))
 	if err != nil {
 		return err
 	}
@@ -136,7 +135,7 @@ func (s *Scanner) Analyze(marketName string, from, to time.Time) error {
 			break
 		}
 
-		_ = m.AddCandle(c, false)
+		_ = m.AddTick(c, false)
 	}
 
 	return nil

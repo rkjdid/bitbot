@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/montanaflynn/stats"
+	"github.com/rkjdid/errors"
 	"github.com/rkjdid/util"
-	"github.com/shopspring/decimal"
 	"github.com/toorop/go-bittrex"
 	"log"
 	"time"
@@ -12,34 +11,21 @@ import (
 
 type Market struct {
 	bittrex.Market
-	Interval   CandleInterval
+	Config     *MarketConfig
 	Candles    []bittrex.Candle
+	Indicators []Indicator
 	LastCandle bittrex.Candle
-
-	ShortMAs   *MATrio
-	LongMAs    *MATrio
-	BBSum      *MovingAverage
-	Multiplier float64
-
-	ConsecutiveHits int
-	TotalHits       int
-
-	Client *bittrex.Bittrex
+	Client     *bittrex.Bittrex
 
 	stop chan interface{}
 }
 
-func NewMarket(market bittrex.Market, shortLength, longLength, bbLength int,
-	interval CandleInterval, multiplier float64, client *bittrex.Bittrex) *Market {
-
+func NewMarket(market bittrex.Market, cfg MarketConfig, client *bittrex.Bittrex) *Market {
 	return &Market{
 		Market:     market,
-		ShortMAs:   NewMATrio(shortLength),
-		LongMAs:    NewMATrio(longLength),
-		BBSum:      NewMovingAverage(bbLength),
-		Interval:   interval,
+		Config:     &cfg,
 		Client:     client,
-		Multiplier: multiplier,
+		Indicators: make([]Indicator, 0),
 	}
 }
 
@@ -72,96 +58,54 @@ func (m *Market) IsCandleNew(candle bittrex.Candle) bool {
 }
 
 func (m *Market) GetLatestTick() (cdl bittrex.Candle, err error) {
-	candles, err := m.Client.GetLatestTick(m.MarketName, string(m.Interval))
+	candles, err := m.Client.GetLatestTick(m.MarketName, string(m.Config.Interval))
 	if err != nil {
 		return cdl, err
 	}
 	return candles[0], nil
 }
 
-// FillCandles retreives the last n candles from market history
+// FillCandles retreives the last sz candles from market history
 // and fills moving averages so next candle works with relevant data.
-func (m *Market) FillCandles() error {
-	candles, err := m.Client.GetTicks(m.MarketName, string(m.Interval))
+func (m *Market) PrefillCandles() error {
+	candles, err := m.Client.GetTicks(m.MarketName, string(m.Config.Interval))
 	if err != nil {
 		return err
 	}
 
-	sz := max(m.LongMAs.Length, m.ShortMAs.Length, m.BBSum.Window)
+	sz := m.Config.Prefill
 	m.Candles = make([]bittrex.Candle, sz)
-
 	if sz > len(candles) {
 		sz = len(candles)
 	}
 
 	for i := len(candles) - sz; i < len(candles); i++ {
-		m.AddCandle(candles[i], true)
+		m.AddTick(candles[i], true)
 	}
 	return nil
 }
 
 // AddCandle inserts c as the last candle, recomputing Values()
 // and returning true if added candle was a hit.
-func (m *Market) AddCandle(c bittrex.Candle, fillOnly bool) bool {
+func (m *Market) AddTick(c bittrex.Candle, fillOnly bool) (errs error) {
 	m.LastCandle = c
-	p := c.Close
-	v := c.Volume
-	m.ShortMAs.Add(p, v)
-	m.LongMAs.Add(p, v)
-
-	vpc := (m.LongMAs.PV.Avg().Div(m.LongMAs.V.Avg())).Sub(m.LongMAs.P.Avg())
-	vpr := (m.ShortMAs.PV.Avg().Div(m.ShortMAs.V.Avg())).Div(m.ShortMAs.P.Avg())
-	vm := m.ShortMAs.V.Avg().Div(m.LongMAs.V.Avg())
-	vpci := vpc.Mul(vpr).Mul(vm)
-
-	m.BBSum.Add(vpci)
-	if fillOnly {
-		return false
+	for _, v := range m.Indicators {
+		err = v.AddTick(c)
+		if err != nil {
+			log.Printf("%s: %s", v, err)
+			errs = errors.Add(errs, err)
+		}
 	}
-
-	dev, err := stats.StandardDeviation(stats.Float64Data(m.BBSum.FloatValues()))
-	if err != nil {
-		log.Panicf("stdev shouldnt error: %s (len: %d)", err, len(m.BBSum.Values()))
-	}
-
-	basis := m.BBSum.Avg()
-	dev *= m.Multiplier
-
-	// hit detection
-	hit := vpci.GreaterThan(basis.Add(decimal.NewFromFloat(dev)))
-
-	if hit {
-		m.ConsecutiveHits += 1
-		m.TotalHits += 1
-	} else {
-		m.ConsecutiveHits = 0
-	}
-
-	if *verbose {
-		log.Printf("%12s - %s - price %s - volume: %s - MA_P: %s / %s, MA_V: %s / %s, MA_PV: %s / %s\n\t"+
-			"vpc: %s, vpr: %s, vm: %s, vpci: %s, basis: %s, dev: %f",
-			m.MarketName, util.ParisTime(c.TimeStamp.Time), p, v,
-			m.ShortMAs.P.Avg(), m.LongMAs.P.Avg(),
-			m.ShortMAs.V.Avg(), m.LongMAs.V.Avg(),
-			m.ShortMAs.PV.Avg(), m.LongMAs.PV.Avg(),
-			vpc, vpr, vm, vpci, basis, dev)
-	}
-
-	if hit {
-		log.Printf("HIT %12s - %s - consecutive: %d, total: %3d, price: %s",
-			m.MarketName, util.ParisTime(c.TimeStamp.Time), m.ConsecutiveHits, m.TotalHits, p)
-	}
-
-	return hit
+	return errs
 }
 
 func (m *Market) StartPolling() {
 	var (
 		// poll for a bit less than duration, so we can try and catch up delay
 		// without polling to much unnecessarily
-		longPoll = time.Duration(Candles[m.Interval]) * (4 / 5)
+		longPoll = time.Duration(Candles[m.Config.Interval]) * (4 / 5)
 		// become somewhat aggressive towards the end of the interval
-		shortPoll = time.Duration(Candles[m.Interval]) / 30
+		shortPoll = time.Duration(Candles[m.Config.Interval]) / 30
 		name      = m.MarketName
 		timer     = time.NewTimer(shortPoll)
 		c         bittrex.Candle
@@ -169,7 +113,7 @@ func (m *Market) StartPolling() {
 
 	m.stop = make(chan interface{})
 	for {
-		candles, err := m.Client.GetLatestTick(name, string(m.Interval))
+		candles, err := m.Client.GetLatestTick(name, string(m.Config.Interval))
 		if err != nil {
 			log.Printf("bittrex GetLatestTick %s: %s", name, err)
 			timer.Reset(shortPoll)
@@ -184,7 +128,7 @@ func (m *Market) StartPolling() {
 
 		// We have a new candle, we insert previous m.LastCandle for computation,
 		// which is recent enough hopefully.
-		_ = m.AddCandle(m.LastCandle, false)
+		_ = m.AddTick(m.LastCandle, false)
 
 		// store new candle
 		m.LastCandle = c

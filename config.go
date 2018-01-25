@@ -24,7 +24,9 @@ var Candles = map[CandleInterval]util.Duration{
 }
 
 type Config struct {
-	Scanner *ScannerConfig
+	Scanner ScannerConfig
+	Market  MarketConfig
+	VPCI    VPCIConfig
 }
 
 type ScannerConfig struct {
@@ -34,9 +36,22 @@ type ScannerConfig struct {
 	// only pick markets whose daily volume is greater than
 	MinBtcVolumeDaily float64
 
+	// number of consecutive hits to trigger notification
+	NotificationThreshold int
+
+	BittrexApiKey    string
+	BittrexApiSecret string
+}
+
+type MarketConfig struct {
 	// candle time string: one of "oneMin" "fiveMin" "thirtyMin" "hour" "day"
 	Interval CandleInterval
 
+	// Prefill is the amount of candles to fetch for market upon initialization
+	Prefill int
+}
+
+type VPCIConfig struct {
 	// long term MA length
 	LongTerm int
 
@@ -46,22 +61,24 @@ type ScannerConfig struct {
 	BBLength   int
 	Multiplier float64
 
-	// number of consecutive hits to trigger notification
-	NotificationThreshold int
-
-	BittrexApiKey    string
-	BittrexApiSecret string
+	Enabled bool
 }
 
-var DefaultConfig = Config{
-	Scanner: &ScannerConfig{
+var DefaultScannerConfig = Config{
+	ScannerConfig{
 		Pairs:                 []string{},
-		Interval:              Candle30Minutes,
-		LongTerm:              20,
-		ShortTerm:             5,
-		BBLength:              20,
-		Multiplier:            2.5,
 		MinBtcVolumeDaily:     200.0,
 		NotificationThreshold: 0,
+	},
+	MarketConfig{
+		Interval: Candle30Minutes,
+		Prefill:  20,
+	},
+	VPCIConfig{
+		LongTerm:   20,
+		ShortTerm:  5,
+		BBLength:   20,
+		Multiplier: 2.5,
+		Enabled:    true,
 	},
 }

@@ -95,7 +95,7 @@ func init() {
 		if !os.IsNotExist(err) {
 			log.Fatalf("error reading config \"%s\": %s", *cfgPath, err)
 		}
-		cfg = &DefaultConfig
+		cfg = &DefaultScannerConfig
 		err = util.WriteTomlFile(cfg, *cfgPath)
 		if err != nil {
 			log.Fatalf("error creating config file \"%s\": %s", *cfgPath, err)
@@ -124,7 +124,7 @@ func main() {
 			}
 		}
 
-		err := s.Analyze(*analyze, tFrom, tTo)
+		err := s.Analyze(*analyze, cfg.Market, tFrom, tTo)
 		if err != nil {
 			log.Fatalf("AnalyzeMarket(%s): %s", *analyze, err)
 		}
@@ -132,7 +132,8 @@ func main() {
 	}
 
 	log.Println("Press <Ctrl-C> to quit")
-	go s.Scan()
+	s.InitMarkets(cfg.Market)
+	go s.Start()
 
 	trap := make(chan os.Signal)
 	signal.Notify(trap, os.Kill, os.Interrupt)
