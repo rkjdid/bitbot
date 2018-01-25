@@ -29,6 +29,10 @@ func NewMarket(market bittrex.Market, cfg MarketConfig, client *bittrex.Bittrex)
 	}
 }
 
+func (m *Market) AddIndicator(ind Indicator) {
+	m.Indicators = append(m.Indicators, ind)
+}
+
 func max(ints ...int) int {
 	if len(ints) == 0 {
 		return 0

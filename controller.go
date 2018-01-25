@@ -12,6 +12,7 @@ type Controller struct {
 	Markets map[string]*Market
 	Client  *bittrex.Bittrex
 	stop    chan interface{}
+	signals chan Signal
 }
 
 func NewController(cfg ControllerConfig) *Controller {
@@ -19,6 +20,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		Config:  &cfg,
 		Client:  bittrex.New(cfg.BittrexApiKey, cfg.BittrexApiSecret),
 		Markets: make(map[string]*Market),
+		signals: make(chan Signal),
 	}
 }
 
@@ -26,7 +28,7 @@ func (ctrl *Controller) NewMarket(market bittrex.Market, cfg MarketConfig) *Mark
 	return NewMarket(market, cfg, ctrl.Client)
 }
 
-func (ctrl *Controller) InitMarkets(mcfg MarketConfig) error {
+func (ctrl *Controller) InitMarkets(mcfg MarketConfig, vpcicfg VPCIConfig) error {
 	markets, err := ctrl.Client.GetMarkets()
 	if err != nil {
 		return err
@@ -77,6 +79,11 @@ func (ctrl *Controller) InitMarkets(mcfg MarketConfig) error {
 			log.Printf("error filling candles for %s: %s", market.MarketName, err)
 			continue
 		}
+
+		// add desired indicators
+		ind := NewVPCI(market.MarketName, vpcicfg, []chan<- Signal{chan<- Signal(ctrl.signals)})
+		m.AddIndicator(ind)
+
 		ctrl.Markets[name] = m
 		log.Println("tracking market", name)
 	}
@@ -91,8 +98,8 @@ func (ctrl *Controller) Stop() {
 	ctrl.stop = nil
 }
 
-func (ctrl *Controller) Start() {
-	ctrl.InitMarkets(cfg.Market)
+func (ctrl *Controller) Start(vpci VPCIConfig) {
+	ctrl.InitMarkets(cfg.Market, vpci)
 	log.Printf("%d tracked markets", len(ctrl.Markets))
 	for _, market := range ctrl.Markets {
 		go market.StartPolling()

@@ -132,8 +132,8 @@ func main() {
 	}
 
 	log.Println("Press <Ctrl-C> to quit")
-	ctrl.InitMarkets(cfg.Market)
-	go ctrl.Start()
+	ctrl.InitMarkets(cfg.Market, cfg.VPCI)
+	go ctrl.Start(cfg.VPCI)
 
 	trap := make(chan os.Signal)
 	signal.Notify(trap, os.Kill, os.Interrupt)

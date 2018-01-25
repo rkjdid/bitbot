@@ -104,11 +104,12 @@ type VPCI struct {
 	Multiplier float64
 }
 
-func NewVPCI(name string, cfg VPCIConfig) *VPCI {
+func NewVPCI(name string, cfg VPCIConfig, subs []chan<- Signal) *VPCI {
 	return &VPCI{
 		BaseIndicator: BaseIndicator{
-			Name:    name,
-			Timeout: time.Second * 10,
+			Name:          name,
+			Subscriptions: subs,
+			Timeout:       time.Second * 10,
 		},
 		ShortMAs:   NewMATrio(cfg.ShortTerm),
 		LongMAs:    NewMATrio(cfg.LongTerm),
